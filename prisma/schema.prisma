@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum ContextType {
+  mobile
+  pc
+  offline
+  unknown
+}
+
+enum ReminderStyle {
+  gentle
+  minimal_action
+  ddl_push
+}
+
+enum TaskStatus {
+  active
+  archived
+}
+
+enum ReminderEventType {
+  reminder_sent
+  accept
+  delay
+  reject
+}
+
+enum ReminderResponseType {
+  now_start
+  remind_later
+  not_today
+}
+
+model Task {
+  id             String          @id @default(cuid())
+  content        String
+  parsedAction   String
+  dueAt          DateTime?
+  contextType    ContextType     @default(unknown)
+  reminderStyle  ReminderStyle   @default(minimal_action)
+  status         TaskStatus      @default(active)
+  nextReminderAt DateTime?
+  archivedAt     DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  reminderEvents ReminderEvent[]
+
+  @@index([status, nextReminderAt])
+  @@index([dueAt])
+}
+
+model ReminderEvent {
+  id           String               @id @default(cuid())
+  taskId       String
+  eventType    ReminderEventType
+  responseType ReminderResponseType?
+  messageShown String
+  scheduledFor DateTime?
+  happenedAt   DateTime             @default(now())
+  delayMinutes Int?
+  task         Task                 @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, happenedAt])
+  @@index([eventType, happenedAt])
+}
