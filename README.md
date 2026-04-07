@@ -50,13 +50,13 @@
 
 ## 在线演示
 
-演示地址：[(https://github.com/han00000111/first-step)]
-
+演示地址：[https://first-step-rouge.vercel.app/]
 ---
 
 ## GitHub 仓库
 
-项目代码：[https://first-step-rouge.vercel.app/]
+项目代码：[https://github.com/han00000111/first-step]
+
 
 ---
 
