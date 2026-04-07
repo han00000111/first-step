@@ -55,16 +55,17 @@ function HomeErrorState({ message }: { message: string }) {
   return (
     <AppShell
       eyebrow="低阻力启动提醒器"
-      title="演示环境当前没有成功连上数据。"
-      description="页面不会直接白屏，是为了让你在线上也能快速定位演示数据库的初始化问题。"
+      title="当前环境还没有成功连上数据库。"
+      description="页面不会直接白屏，是为了让你在线上也能更快定位环境变量或数据库连接配置问题。"
     >
       <DemoRuntimeError
         title="首页数据读取失败"
-        message="通常是线上 SQLite demo 数据库没有在第一次 Prisma 查询前准备好，或者 DATABASE_URL 没有指向可用的 /tmp 路径。"
+        message="通常是当前环境的 Postgres 数据库没有连通，或者 DATABASE_URL / DIRECT_URL 还没有按环境正确配置。"
         details={[
-          `当前 DATABASE_URL：${prismaSetupState.databaseUrl}`,
-          `目标数据库路径：${prismaSetupState.targetPath ?? "未解析到 sqlite 路径"}`,
-          `初始化状态：${prismaSetupState.setupError ?? "数据库快照复制步骤已执行"}`,
+          `当前 APP_ENV：${prismaSetupState.appEnvironment}`,
+          `数据库类型：${prismaSetupState.databaseProvider}`,
+          `当前数据库目标：${prismaSetupState.databaseUrlMasked}`,
+          `环境提示：${prismaSetupState.setupError ?? "DATABASE_URL 已显式配置"}`,
           `本次 Prisma 错误：${message}`,
         ]}
       />
@@ -179,10 +180,10 @@ function HomeContent({ summary }: { summary: HomeSummaryData }) {
               如果你想每次都从同一组演示数据开始，先执行一次种子命令。
             </div>
             <div className="mt-4 rounded-[18px] border border-emerald-100 bg-white px-4 py-4 font-mono text-sm text-zinc-900">
-              npm run db:seed
+              npm run db:reset:demo
             </div>
             <div className="mt-3 text-xs leading-5 text-zinc-500">
-              这会重建演示任务、提醒事件和看板统计样本，适合现场重复演示。
+              这会把正式演示数据恢复到稳定样本集，适合现场重复演示。
             </div>
           </div>
 

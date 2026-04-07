@@ -1,210 +1,179 @@
 # 「第一步」部署指南
 
-## 首次部署步骤
+## 目标
 
-### 1. 本地准备项目
+当前部署策略的目标不是“先把应用跑起来”，而是：
+
+1. Production 保持稳定演示数据
+2. Preview 有独立测试数据源
+3. Local / Preview / Production 三套环境完全隔离
+
+## 推荐数据库
+
+推荐使用 Prisma 兼容度高、且支持分支/分环境的 Postgres 服务：
+
+- Neon
+- Supabase Postgres
+- Railway Postgres
+
+当前默认文档按 Neon 思路编排：
+
+- `DATABASE_URL` 用连接池地址
+- `DIRECT_URL` 用直连地址
+
+## 环境变量配置
+
+### Local
+
+`.env` 里配置：
 
 ```bash
-npm install
+APP_ENV="local"
+SEED_PROFILE="local"
+DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/first_step_local?schema=public"
+DIRECT_URL="postgresql://postgres:postgres@127.0.0.1:5432/first_step_local?schema=public"
+```
+
+### Vercel Preview
+
+在 Vercel 的 Preview 环境里配置：
+
+```bash
+APP_ENV="preview"
+SEED_PROFILE="preview"
+DATABASE_URL="<preview pooled postgres url>"
+DIRECT_URL="<preview direct postgres url>"
+```
+
+### Vercel Production
+
+在 Vercel 的 Production 环境里配置：
+
+```bash
+APP_ENV="production"
+SEED_PROFILE="demo"
+DATABASE_URL="<production pooled postgres url>"
+DIRECT_URL="<production direct postgres url>"
+```
+
+## 分支与环境的对应关系
+
+推荐策略：
+
+- `main`：Production 数据库
+- `dev`：Preview 数据库
+
+当前仓库如果还没从 `master` 切到 `main`，先按这个原则执行：
+
+- `master` 暂时承担 `main` 的角色
+- `dev` 继续承担预览分支角色
+
+重点不是分支名字本身，而是：
+
+- Production Branch 只连 Production 数据库
+- Preview Branch 只连 Preview 数据库
+
+## 本地开发步骤
+
+### 1. 启动本地 Postgres
+
+```bash
+npm run db:local:up
+```
+
+### 2. 执行迁移
+
+```bash
 npm run db:migrate
-npm run db:seed
-npm run deploy:check
 ```
 
-这一步会：
-
-- 初始化本地数据库
-- 生成一套稳定的演示数据
-- 更新 `prisma/demo.db`
-- 确认 `lint` 和 `build` 均通过
-
-### 2. 推送到 GitHub
-
-建议分支结构：
-
-- `main`：稳定演示版
-- `dev`：持续优化版
-
-建议流程：
-
-1. 把当前可演示状态提交到 `main`
-2. 从 `main` 拉出 `dev`
-3. 后续日常优化先进入 `dev`
-
-### 3. 在 Vercel 导入 GitHub 仓库
-
-在 Vercel 中：
-
-1. 点击 `Add New... -> Project`
-2. 选择 GitHub 仓库
-3. Framework 识别为 Next.js 即可
-4. Production Branch 设为 `main`
-
-### 4. 配置环境变量
-
-在 Vercel 项目中添加：
+### 3. 注入本地样本
 
 ```bash
-DATABASE_URL="file:/tmp/first-step-demo.db"
+npm run db:seed:local
 ```
 
-不要使用：
+### 4. 启动应用
 
 ```bash
-DATABASE_URL="file:./dev.db"
+npm run dev
 ```
 
-因为 Vercel 线上实例不能把项目目录当作可写数据库目录。  
-演示版 SQLite 必须使用 `/tmp`。
+## Preview 环境初始化
 
-### 5. 首次部署
-
-- 触发 `main` 部署后，会得到一个 Production Deployment
-- 这个生产地址就是稳定演示链接
-
-## 设备通知部署说明
-
-当前设备通知走的是 Web/PWA 最小可用方案，不需要额外环境变量，但有两个前提：
-
-1. 部署地址必须是 `https`
-2. 用户需要在页面里主动授予通知权限
-
-部署完成后，你可以这样验证：
-
-1. 打开首页或任意主页面
-2. 在“设备通知”卡片里点击“开启设备通知”
-3. 再点击“发送测试通知”
-4. 如果测试通过，再去任务页手动触发一条提醒
-5. 回到页面等待同步，或点“立即同步提醒”
-
-### 当前 Web/PWA 能做到什么
-
-- 页面打开时优先尝试发出系统通知
-- Service Worker 已注册
-- 点击通知可回到提醒页
-- 站内提醒中心继续作为兜底
-
-### 当前 Web/PWA 做不到什么
-
-- 不能保证浏览器彻底关闭后仍稳定到点提醒
-- 不能保证所有移动设备都有原生闹钟级铃声体验
-- 不能替代原生 App 的本地通知能力
-
-## 如何拿到公开演示链接
-
-### 稳定公开演示链接
-
-- 使用 `main` 分支对应的 Production Deployment
-- 这个地址适合对外展示
-
-### 预览链接
-
-- 每次 push 到 `dev`
-- 或者从 `dev` 向 `main` 发起 PR
-- Vercel 都会自动生成一个 Preview Deployment 链接
-
-这个预览链接是公网可访问的，可以直接发给别人看，但不会影响 `main` 的稳定演示地址。
-
-## 如何继续迭代而不影响稳定版
-
-推荐工作流：
-
-1. `main` 只保留稳定可演示版本
-2. 日常开发在 `dev`
-3. 每次 push `dev`，使用 Vercel Preview Deployment 看效果
-4. 确认没问题后，再把 `dev` 合并回 `main`
-
-这样能同时满足：
-
-- `main` 有稳定公开链接
-- `dev` 可以持续试验和预览
-
-## GitHub + Vercel 的推荐使用方式
-
-### 稳定演示版
-
-- 演示时使用 `main` 对应的生产域名
-
-### 持续优化版
-
-- 开发时在 `dev`
-- 每次 push 到 `dev` 都会生成新的预览链接
-- 预览验收通过后，再合并到 `main`
-
-## 本地 Vercel CLI 部署方式
-
-如果你不想先走 GitHub，也可以先本地部署：
-
-### 1. 安装 CLI
+当 Preview 数据库首次创建后，执行：
 
 ```bash
-npm i -g vercel
+npm run db:migrate:deploy
+npm run db:seed:preview
 ```
 
-### 2. 登录
+执行方式有两种：
+
+1. 在本地 shell 临时切到 Preview 的 `DATABASE_URL` / `DIRECT_URL` 后执行
+2. 在 CI / 平台任务里执行
+
+## Production 环境初始化
+
+当 Production 数据库首次创建后，执行：
 
 ```bash
-vercel login
+npm run db:migrate:deploy
+npm run db:seed:demo
 ```
 
-### 3. 本地预览部署
+Production 的 `demo` seed 代表稳定演示数据集。
+
+如果演示环境被现场操作污染，也可以再次执行：
 
 ```bash
-vercel
+npm run db:reset:demo
 ```
 
-### 4. 发布到生产
+## 为什么不再使用 SQLite 快照
 
-```bash
-vercel --prod
-```
+旧方案的问题很明确：
 
-CLI 部署也要在 Vercel 项目里配置同样的环境变量：
+1. SQLite 单文件不适合 Vercel 多实例运行
+2. `/tmp` 不是长期持久存储
+3. Preview 和 Production 很难稳定隔离
+4. 后续 Web Push、用户订阅和长期在线数据都需要真正的云数据库
 
-```bash
-DATABASE_URL="file:/tmp/first-step-demo.db"
-```
+所以这次升级后：
 
-## 如何回滚到上一个稳定版本
+- 运行时不再复制 `demo.db`
+- 线上只依赖环境变量里的 Postgres 连接
 
-有两种简单方式：
+## 验收方式
 
-### 方式 1：在 Vercel 控制台回滚
+### Production 验收
 
-1. 打开项目的 Deployments 列表
-2. 找到上一个稳定的 Production Deployment
-3. Promote 或重新恢复该版本
+1. 打开 Production 地址
+2. 看到稳定演示数据
+3. 在 Preview 环境新增任务，不会出现在 Production
 
-### 方式 2：在 GitHub 回滚
+### Preview 验收
 
-1. 回退 `main` 上最近一次不稳定提交
-2. 再次 push 到 `main`
-3. Vercel 会自动重新部署稳定版本
+1. push 到预览分支
+2. Vercel 生成 Preview Deployment
+3. Preview 数据可以自由测试
+4. 不影响 Production 演示数据
 
-## 当前部署方案的限制
+## 回滚方式
 
-这次为了保持项目最小改动、快速可部署，采用的是演示优先方案：
+如果数据库迁移或配置有问题：
 
-- 公网演示使用 `prisma/demo.db` 快照
-- 运行时复制到 `/tmp` 供当前实例读写
-- 如果你漏配了 `DATABASE_URL`，运行时代码会自动回退到 `file:/tmp/first-step-demo.db`
-- 冷启动、扩容或不同实例之间不保证长期共享数据
-- 当前设备通知依赖浏览器通知能力，不是原生设备闹钟
-- 当前方案没有接入 Web Push 服务端，因此主要覆盖“页面打开时的设备通知优先”
+1. 回滚应用代码
+2. 恢复旧的 Production Deployment
+3. 保留 Production 数据库不动
 
-这意味着：
+如果是 seed 被污染：
 
-- 适合公开演示
-- 适合 Preview Deployment
-- 适合继续迭代
-- 不适合当作正式生产数据库方案
+1. 保持代码不变
+2. 重新执行 `npm run db:reset:demo`
 
-## 后续可升级方向
+## 相关文档
 
-如果你后面要把它从“可演示”升级成“可长期在线使用”，下一步优先做：
-
-1. 把 SQLite 演示快照换成真正的云数据库
-2. 给 `main` 和 `dev` 配不同数据库
-3. 保留 `main` 的稳定演示数据集
-4. 把 Preview Deployment 接到独立测试数据源
-5. 如果要做稳定的设备级通知，补 Web Push 或直接升级到原生移动端
+- [docs/environment-strategy.md](./environment-strategy.md)
+- [docs/data-seeding.md](./data-seeding.md)
+- [docs/notification-options.md](./notification-options.md)

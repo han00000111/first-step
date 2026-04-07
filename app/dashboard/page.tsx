@@ -13,16 +13,17 @@ function DashboardErrorState({ message }: { message: string }) {
   return (
     <AppShell
       eyebrow="统计看板"
-      title="看板当前没有成功连上演示数据。"
-      description="这里不会直接白屏，方便你在线上确认是否是演示数据库初始化出了问题。"
+      title="看板当前没有成功连上数据库。"
+      description="这里不会直接白屏，方便你在线上确认是否是环境变量或数据库连接配置出了问题。"
     >
       <DemoRuntimeError
         title="看板数据读取失败"
-        message="通常是线上 SQLite demo 数据库没有准备好，导致 ReminderEvent 聚合查询无法执行。"
+        message="通常是当前环境的 Postgres 数据库没有连通，导致 ReminderEvent 聚合查询无法执行。"
         details={[
-          `当前 DATABASE_URL：${prismaSetupState.databaseUrl}`,
-          `目标数据库路径：${prismaSetupState.targetPath ?? "未解析到 sqlite 路径"}`,
-          `初始化状态：${prismaSetupState.setupError ?? "数据库快照复制步骤已执行"}`,
+          `当前 APP_ENV：${prismaSetupState.appEnvironment}`,
+          `数据库类型：${prismaSetupState.databaseProvider}`,
+          `当前数据库目标：${prismaSetupState.databaseUrlMasked}`,
+          `环境提示：${prismaSetupState.setupError ?? "DATABASE_URL 已显式配置"}`,
           `本次 Prisma 错误：${message}`,
         ]}
       />

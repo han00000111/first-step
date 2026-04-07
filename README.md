@@ -1,6 +1,13 @@
 # 第一步 First Step
 
-一个面向拖延型用户的低阻力启动提醒产品 Demo。
+一个面向拖延型用户的低阻力启动提醒产品。
+
+当前版本已经从“SQLite 演示快照”升级为“云数据库架构准备版”：
+
+- 运行时改为标准 Postgres 连接
+- Production / Preview / Local 三套环境分离
+- `demo / preview / local` 三套 seed profile
+- 保留稳定演示数据集的恢复能力
 
 ## 项目简介
 
@@ -8,7 +15,7 @@
 
 它解决的不是“记不住任务”，而是“明知道该做，却很难启动”。
 
-当前版本已经覆盖：
+当前功能包含：
 
 - 一句话快速录入任务
 - 任务列表与轻量编辑
@@ -16,10 +23,16 @@
 - 启动接受率、延后率、拒绝率看板
 - Web/PWA 最小可用设备通知
 
-## 在线地址
+## 技术栈
 
-- 演示地址：[https://first-step-rouge.vercel.app/](https://first-step-rouge.vercel.app/)
-- GitHub 仓库：[https://github.com/han00000111/first-step](https://github.com/han00000111/first-step)
+- Next.js App Router
+- TypeScript
+- Tailwind CSS
+- Prisma
+- PostgreSQL
+- Zustand
+- date-fns
+- Vercel
 
 ## 本地运行
 
@@ -29,131 +42,118 @@
 npm install
 ```
 
-### 2. 初始化数据库
+### 2. 准备本地环境变量
+
+复制 [.env.example](./.env.example) 为 `.env`，默认本地配置已经指向 Docker Postgres：
+
+```bash
+APP_ENV="local"
+SEED_PROFILE="local"
+DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/first_step_local?schema=public"
+DIRECT_URL="postgresql://postgres:postgres@127.0.0.1:5432/first_step_local?schema=public"
+```
+
+### 3. 启动本地数据库
+
+```bash
+npm run db:local:up
+```
+
+### 4. 初始化数据库
 
 ```bash
 npm run db:migrate
-npm run db:seed
+npm run db:seed:local
 ```
 
-### 3. 启动开发环境
+### 5. 启动开发环境
 
 ```bash
 npm run dev
 ```
 
-### 4. 本地访问
+### 6. 本地访问
 
 [http://localhost:3000](http://localhost:3000)
 
-## 核心流程
+## 数据环境策略
 
-1. 在首页输入一句任务。
-2. 系统生成提醒时机与提醒文案。
-3. 到提醒时间后，提醒会同时进入站内提醒中心，并在支持的设备上优先尝试发出系统通知。
-4. 用户可以选择：
-   - 先开始一点
-   - 稍后提醒我
-   - 今天先放一下
-5. 所有提醒响应都会进入 `ReminderEvent`，看板基于真实事件统计。
+当前推荐的环境拆分如下：
 
-## 设备通知
+- Local Development：本地 Postgres，只给开发使用
+- Preview Deployment：独立测试数据库，只给预览和验收使用
+- Production Deployment：稳定演示数据库，只给正式演示使用
 
-当前版本已经接入 Web/PWA 方向的最小可用设备通知能力：
+这三套环境不共享数据库，避免：
 
-- 页面内可申请通知权限
-- 注册 `Service Worker`
-- 轮询当前到点提醒
-- 到提醒时间后优先尝试发出系统通知
-- 点击通知可回到提醒相关页面
-- 与现有 `ReminderEvent`、手动触发提醒、稍后提醒兼容
+- 测试任务污染正式演示数据
+- Preview 写入影响 Production
+- 本地实验数据进入线上
 
-### 当前 Web/PWA 已实现的部分
+详细说明见：
 
-- 用户可以主动开启通知权限
-- 当页面打开且浏览器仍允许运行时，项目会定时同步到点提醒并尝试发出系统通知
-- 手动触发提醒后，提醒中心和设备通知链路都能接到同一条提醒
-- 稍后提醒、自定义提醒时间仍然沿用原有提醒逻辑
+- [docs/environment-strategy.md](./docs/environment-strategy.md)
+- [docs/data-seeding.md](./docs/data-seeding.md)
 
-### 当前仍然只是站内提醒的部分
+## Seed 数据策略
 
-- 如果浏览器不支持通知
-- 如果用户拒绝了通知权限
-- 如果浏览器已被彻底关闭，或后台运行被系统强力挂起
+当前支持三套 profile：
 
-这些情况下，项目仍然依赖站内提醒中心作为兜底。
+- `local`
+- `preview`
+- `demo`
 
-### Web 版的真实边界
+常用命令：
 
-当前 Web/PWA 版不能承诺“稳定的到点铃声提醒”。
+```bash
+npm run db:seed:local
+npm run db:seed:preview
+npm run db:seed:demo
+```
 
-原因很直接：
+其中：
 
-- 现在的设备通知是基于浏览器通知能力，不是原生闹钟能力
-- 当前实现没有接入 Web Push 服务端推送
-- 即使后续接入 Web Push，Web 也不等于原生本地闹钟
-- 在 iPhone 上，浏览器通知能力还依赖系统、浏览器和安装形态
-
-所以，这一版更准确的定位是：
-
-> 已经不再只是站内提醒，但仍属于 Web/PWA 的最小可用设备通知方案。
-
-### 如果要做到真正稳定的设备铃声提醒
-
-下一步需要升级到原生移动端架构，例如：
-
-- iOS 原生 App + 本地通知 / APNs
-- Android 原生 App + 本地通知 / FCM
-
-如果继续走 Web，也至少需要补：
-
-- Push Subscription
-- Web Push 服务端
-- 设备级推送发送链路
-
-但即便如此，Web 依然不等于原生闹钟体验。
-
-## 演示验证
-
-### 最小演示路径
-
-1. 首页录入一条任务
-2. 在任务页确认任务已创建
-3. 点一次“手动触发提醒”
-4. 在提醒中心看到该提醒
-5. 开启通知权限并点击“立即同步提醒”或等待同步
-6. 观察设备通知是否弹出
-7. 回到看板页查看统计变化
-
-### 如何验证设备通知是否生效
-
-1. 打开首页或任意主页面
-2. 在“设备通知”卡片里点击“开启设备通知”
-3. 开启后先点一次“发送测试通知”
-4. 如果测试通知正常，再去任务页手动触发一条提醒
-5. 回到页面等待同步，或点击“立即同步提醒”
-6. 看到系统通知后，点击通知，应回到提醒页
-
-## 技术栈
-
-- Next.js App Router
-- TypeScript
-- Tailwind CSS
-- Prisma
-- SQLite
-- Zustand
-- date-fns
-- Vercel
-
-## 当前版本限制
-
-- 当前数据库仍是 Demo 方案，不是正式生产数据库
-- 线上使用 SQLite 演示快照复制到 `/tmp`
-- 当前通知属于 Web/PWA 最小可用实现，不是原生稳定闹钟
-- 不含登录注册、多人协作、原生 App、复杂 AI 排程
+- `demo` 用于稳定演示数据集
+- `preview` 用于预览环境测试数据
+- `local` 用于本地开发
 
 ## 部署与预览
 
-部署和预览流程见：
+部署说明见：
 
 - [docs/deployment-guide.md](./docs/deployment-guide.md)
+
+重点环境变量：
+
+### Production
+
+```bash
+APP_ENV="production"
+SEED_PROFILE="demo"
+DATABASE_URL="<production pooled postgres url>"
+DIRECT_URL="<production direct postgres url>"
+```
+
+### Preview
+
+```bash
+APP_ENV="preview"
+SEED_PROFILE="preview"
+DATABASE_URL="<preview pooled postgres url>"
+DIRECT_URL="<preview direct postgres url>"
+```
+
+## 设备通知边界
+
+当前设备通知仍然是 Web/PWA 最小可用方案，不是原生稳定闹钟。
+
+如果你要继续升级通知能力，先看：
+
+- [docs/notification-options.md](./docs/notification-options.md)
+
+## 当前限制
+
+- 云数据库连接串需要你在本地和平台手动配置
+- Preview 与 Production 的数据库隔离需要在 Vercel 环境变量里完成
+- 当前通知仍然没有接入完整 Web Push 服务端
+- 不含登录注册、多人协作、原生 App、复杂 AI 排程
