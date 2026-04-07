@@ -1,9 +1,7 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  outputFileTracingIncludes: {
-    "/*": ["./prisma/demo.db", "./prisma/schema.prisma", "./prisma/migrations/**/*"],
-  },
-};
+  allowedDevOrigins: ['192.168.44.1'],
+}
 
-export default nextConfig;
+export default nextConfig

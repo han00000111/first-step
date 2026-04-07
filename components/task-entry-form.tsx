@@ -1,7 +1,14 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import { Clock3, Laptop, MapPin, Sparkles, Smartphone } from "lucide-react";
+import {
+  ChevronDown,
+  Clock3,
+  Laptop,
+  MapPin,
+  Sparkles,
+  Smartphone,
+} from "lucide-react";
 
 import { createTaskAction } from "@/app/actions/task-actions";
 import { initialTaskActionState } from "@/app/actions/task-action-state";
@@ -46,16 +53,20 @@ export function TaskEntryForm() {
     <form
       ref={formRef}
       action={formAction}
-      className="rounded-[32px] border border-white/80 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdfb_100%)] p-6 shadow-[0_22px_64px_-32px_rgba(15,23,42,0.28)] sm:p-8"
+      className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,#fffefe_0%,#fbfdf9_100%)] p-5 shadow-[0_26px_70px_-40px_rgba(15,23,42,0.32)] sm:p-7"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-emerald-700">
-          <Clock3 className="h-4 w-4" />
-          快速录入
-        </div>
-        <div className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs text-emerald-800">
-          默认 10 秒内完成
-        </div>
+      <div className="flex items-center gap-2 text-sm font-medium text-emerald-700">
+        <Clock3 className="h-4 w-4" />
+        快速录入
+      </div>
+
+      <div className="mt-4 space-y-2">
+        <h2 className="text-[1.6rem] font-semibold tracking-tight text-zinc-900 sm:text-[1.9rem]">
+          想到什么，就先记一句。
+        </h2>
+        <p className="max-w-xl text-sm leading-6 text-zinc-600">
+          不用先拆计划，也不用想完整流程。先把这件事放进来，剩下交给提醒时机。
+        </p>
       </div>
 
       <label className="mt-5 block text-sm font-medium text-zinc-700">
@@ -64,84 +75,96 @@ export function TaskEntryForm() {
       <textarea
         name="content"
         required
-        className="mt-3 min-h-44 w-full resize-none rounded-[24px] border border-emerald-100 bg-[#fcfffd] px-5 py-5 text-base leading-7 text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] transition focus:border-emerald-300 focus:bg-white focus:shadow-[0_0_0_4px_rgba(167,243,208,0.45)]"
+        className="mt-3 min-h-40 w-full resize-none rounded-[26px] border border-emerald-100 bg-[#fcfffd] px-5 py-5 text-base leading-7 text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] transition focus:border-emerald-300 focus:bg-white focus:shadow-[0_0_0_4px_rgba(167,243,208,0.45)]"
         placeholder={"明天下午给 HR 回消息\n今晚改简历第一段\n周四前投 3 个岗位"}
       />
       {state.fieldErrors?.content ? (
         <p className="mt-2 text-sm text-rose-600">{state.fieldErrors.content}</p>
       ) : null}
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap gap-2">
         {quickExamples.map((example) => (
           <span
             key={example}
-            className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50/90 px-3 py-1.5 text-xs text-zinc-600"
+            className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50/70 px-3 py-1.5 text-xs text-emerald-900"
           >
-            <Sparkles className="h-3 w-3 text-emerald-600" />
+            <Sparkles className="h-3 w-3 text-emerald-700" />
             {example}
           </span>
         ))}
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className="block text-sm font-medium text-zinc-700">最晚时间</label>
-          <input
-            name="dueAt"
-            type="datetime-local"
-            className="mt-3 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-800 transition focus:border-emerald-300 focus:bg-white focus:shadow-[0_0_0_4px_rgba(167,243,208,0.35)]"
-          />
-          {state.fieldErrors?.dueAt ? (
-            <p className="mt-2 text-sm text-rose-600">{state.fieldErrors.dueAt}</p>
-          ) : (
-            <p className="mt-2 text-xs leading-5 text-zinc-500">
-              不填也可以，系统会默认 2 小时后给一次轻提醒。
-            </p>
-          )}
-        </div>
+      <details className="group mt-5 rounded-[24px] border border-emerald-100/80 bg-[#f7faf6] p-4">
+        <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-medium text-zinc-800">
+          <div>
+            <div>补充设置</div>
+            <div className="mt-1 text-xs font-normal text-zinc-500">
+              截止时间和任务场景都可选
+            </div>
+          </div>
+          <ChevronDown className="h-4 w-4 text-zinc-400 transition group-open:rotate-180" />
+        </summary>
 
-        <div>
-          <label className="block text-sm font-medium text-zinc-700">任务场景</label>
-          <select
-            name="contextType"
-            value={preferredContext}
-            onChange={(event) =>
-              setPreferredContext(event.target.value as ContextTypeValue)
-            }
-            className="mt-3 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-800 transition focus:border-emerald-300 focus:bg-white focus:shadow-[0_0_0_4px_rgba(167,243,208,0.35)]"
-          >
-            {contextOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {quickContextOptions.map((option) => {
-              const Icon = option.icon;
+        <div className="mt-4 grid gap-4">
+          <div>
+            <label className="block text-sm font-medium text-zinc-700">最晚时间</label>
+            <input
+              name="dueAt"
+              type="datetime-local"
+              className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-800 transition focus:border-emerald-300 focus:bg-white focus:shadow-[0_0_0_4px_rgba(167,243,208,0.35)]"
+            />
+            {state.fieldErrors?.dueAt ? (
+              <p className="mt-2 text-sm text-rose-600">{state.fieldErrors.dueAt}</p>
+            ) : (
+              <p className="mt-2 text-xs leading-5 text-zinc-500">
+                不填也可以，系统会在更轻的时机先给一次提醒。
+              </p>
+            )}
+          </div>
 
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setPreferredContext(option.value)}
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium transition",
-                    preferredContext === option.value
-                      ? "border-emerald-200 bg-emerald-100 text-emerald-900"
-                      : "border-zinc-200 bg-white text-zinc-600 hover:border-emerald-200 hover:bg-emerald-50/70",
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
+          <div>
+            <label className="block text-sm font-medium text-zinc-700">任务场景</label>
+            <select
+              name="contextType"
+              value={preferredContext}
+              onChange={(event) =>
+                setPreferredContext(event.target.value as ContextTypeValue)
+              }
+              className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-800 transition focus:border-emerald-300 focus:bg-white focus:shadow-[0_0_0_4px_rgba(167,243,208,0.35)]"
+            >
+              {contextOptions.map((option) => (
+                <option key={option.value} value={option.value}>
                   {option.label}
-                </button>
-              );
-            })}
+                </option>
+              ))}
+            </select>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {quickContextOptions.map((option) => {
+                const Icon = option.icon;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setPreferredContext(option.value)}
+                    className={cn(
+                      "inline-flex min-h-10 items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium transition",
+                      preferredContext === option.value
+                        ? "border-emerald-200 bg-emerald-100 text-emerald-900"
+                        : "border-zinc-200 bg-white text-zinc-600 hover:border-emerald-200 hover:bg-emerald-50/70",
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
-      </div>
+      </details>
 
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-5 flex flex-col gap-3">
         <div className="text-sm text-zinc-500">
           {state.message ? (
             <span
@@ -152,13 +175,13 @@ export function TaskEntryForm() {
               {state.message}
             </span>
           ) : (
-            "默认只需要一句话，其他字段都可选。"
+            "默认只需要一句话，其他字段都可以以后再补。"
           )}
         </div>
 
         <FormSubmitButton
-          pendingText="加入中…"
-          className="w-full bg-emerald-600 px-5 py-3 text-white hover:bg-emerald-700 sm:w-auto"
+          pendingText="加入中..."
+          className="w-full bg-emerald-600 px-5 py-3.5 text-base text-white shadow-[0_14px_30px_-18px_rgba(16,185,129,0.8)] hover:bg-emerald-700"
         >
           加入任务
         </FormSubmitButton>

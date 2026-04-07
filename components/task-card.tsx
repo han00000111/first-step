@@ -43,21 +43,17 @@ export function TaskCard({ task }: TaskCardProps) {
   }, [setEditingTaskId, state.status]);
 
   return (
-    <article className="rounded-[28px] border border-zinc-200 bg-white p-6 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.18)]">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <article className="rounded-[28px] border border-white/80 bg-white/95 p-5 shadow-[0_18px_50px_-28px_rgba(15,23,42,0.18)] sm:p-6">
+      <div className="space-y-4">
         <div className="space-y-3">
-          <h2 className="text-xl font-semibold tracking-tight text-zinc-900">
-            {task.content}
-          </h2>
-          <p className="text-sm leading-6 text-zinc-500">
-            推荐的第一步：{task.parsedAction}
-          </p>
-          <div className="flex flex-wrap gap-2 text-sm text-zinc-500">
-            <span className="rounded-full bg-zinc-100 px-3 py-1">
-              创建于 {task.createdAtLabel}
-            </span>
-            <span className="rounded-full bg-zinc-100 px-3 py-1">
-              最晚时间 {task.dueAtLabel ?? "未设置"}
+          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+            <span
+              className={cn(
+                "rounded-full px-3 py-1 font-medium",
+                statusToneClassName[task.statusTone],
+              )}
+            >
+              {task.statusLabel}
             </span>
             <span className="rounded-full bg-zinc-100 px-3 py-1">
               场景 {task.contextLabel}
@@ -65,36 +61,64 @@ export function TaskCard({ task }: TaskCardProps) {
             <span className="rounded-full bg-zinc-100 px-3 py-1">
               文案 {task.reminderStyleLabel}
             </span>
-            <span
-              className={cn(
-                "rounded-full px-3 py-1",
-                statusToneClassName[task.statusTone],
-              )}
-            >
-              状态 {task.statusLabel}
-            </span>
-            <span className="rounded-full bg-sky-50 px-3 py-1 text-sky-800">
-              下次提醒 {task.nextReminderAtLabel ?? "待生成"}
-            </span>
           </div>
+
+          <h2 className="text-lg font-semibold tracking-tight text-zinc-900 sm:text-xl">
+            {task.content}
+          </h2>
+
+          <div className="rounded-[22px] border border-emerald-100 bg-[linear-gradient(180deg,#f8fffb_0%,#eef9f2_100%)] px-4 py-4">
+            <div className="text-xs font-medium uppercase tracking-[0.18em] text-emerald-700">
+              推荐的第一步
+            </div>
+            <div className="mt-2 text-base font-medium leading-7 text-zinc-900">
+              {task.parsedAction}
+            </div>
+          </div>
+
+          <dl className="grid grid-cols-2 gap-3 rounded-[22px] bg-zinc-50/85 p-4 text-sm">
+            <div>
+              <dt className="text-zinc-500">下次提醒</dt>
+              <dd className="mt-1 font-medium text-zinc-900">
+                {task.nextReminderAtLabel ?? "待生成"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-zinc-500">最晚时间</dt>
+              <dd className="mt-1 font-medium text-zinc-900">
+                {task.dueAtLabel ?? "未设置"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-zinc-500">创建时间</dt>
+              <dd className="mt-1 font-medium text-zinc-900">{task.createdAtLabel}</dd>
+            </div>
+            <div>
+              <dt className="text-zinc-500">当前状态</dt>
+              <dd className="mt-1 font-medium text-zinc-900">{task.statusLabel}</dd>
+            </div>
+          </dl>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {!task.isArchived ? (
             <button
               type="button"
               onClick={() => setEditingTaskId(isEditing ? null : task.id)}
-              className="rounded-2xl border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-400"
+              className="min-h-11 rounded-[18px] border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-400"
             >
-              {isEditing ? "收起编辑" : "编辑"}
+              {isEditing ? "收起编辑" : "编辑任务"}
             </button>
           ) : null}
 
           {!task.isArchived ? (
-            <form action={triggerTaskReminderAction.bind(null, task.id)}>
+            <form
+              className="col-span-2 sm:col-span-1"
+              action={triggerTaskReminderAction.bind(null, task.id)}
+            >
               <FormSubmitButton
-                pendingText="处理中…"
-                className="border border-zinc-200 bg-white text-zinc-700 hover:border-zinc-400"
+                pendingText="处理中..."
+                className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
               >
                 手动触发提醒
               </FormSubmitButton>
@@ -102,20 +126,26 @@ export function TaskCard({ task }: TaskCardProps) {
           ) : null}
 
           {!task.isArchived ? (
-            <form action={archiveTaskAction.bind(null, task.id)}>
+            <form className="col-span-1" action={archiveTaskAction.bind(null, task.id)}>
               <FormSubmitButton
-                pendingText="归档中…"
-                className="border border-zinc-200 bg-white text-zinc-700 hover:border-zinc-400"
+                pendingText="归档中..."
+                className="w-full border border-zinc-200 bg-white text-zinc-700 hover:border-zinc-400"
               >
                 归档
               </FormSubmitButton>
             </form>
           ) : null}
 
-          <form action={deleteTaskAction.bind(null, task.id)}>
+          <form
+            className={cn(
+              "col-span-2 sm:col-span-1",
+              task.isArchived ? "sm:w-full" : undefined,
+            )}
+            action={deleteTaskAction.bind(null, task.id)}
+          >
             <FormSubmitButton
-              pendingText="删除中…"
-              className="border border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300"
+              pendingText="删除中..."
+              className="w-full border border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300"
             >
               删除
             </FormSubmitButton>
@@ -126,10 +156,10 @@ export function TaskCard({ task }: TaskCardProps) {
       {isEditing ? (
         <form
           action={formAction}
-          className="mt-6 rounded-[24px] border border-zinc-200 bg-zinc-50 p-5"
+          className="mt-5 rounded-[24px] border border-amber-100 bg-amber-50/60 p-4 sm:p-5"
         >
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px_180px]">
-            <div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-zinc-700">任务文本</label>
               <textarea
                 name="content"
@@ -170,21 +200,21 @@ export function TaskCard({ task }: TaskCardProps) {
             </div>
           </div>
 
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-4 flex flex-col gap-3">
             <div className="text-sm text-zinc-500">
-              {state.message || "修改任务后，系统会重新计算 parsedAction 和下一次提醒时间。"}
+              {state.message || "保存后，系统会重新计算推荐的第一步和下一次提醒时间。"}
             </div>
-            <div className="flex gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setEditingTaskId(null)}
-                className="rounded-2xl border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700"
+                className="min-h-11 rounded-[18px] border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700"
               >
                 取消
               </button>
               <FormSubmitButton
-                pendingText="保存中…"
-                className="bg-zinc-900 text-white"
+                pendingText="保存中..."
+                className="w-full bg-zinc-900 text-white"
               >
                 保存修改
               </FormSubmitButton>
