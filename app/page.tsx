@@ -11,7 +11,9 @@ import {
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { DemoRuntimeError } from "@/components/demo-runtime-error";
 import { TaskEntryForm } from "@/components/task-entry-form";
+import { prismaSetupState } from "@/lib/prisma";
 import { getTaskHomeSummary } from "@/lib/task-service";
 
 export const dynamic = "force-dynamic";
@@ -49,9 +51,30 @@ const demoSteps = [
   },
 ];
 
-export default async function Home() {
-  const summary = await getTaskHomeSummary();
+type HomeSummaryData = Awaited<ReturnType<typeof getTaskHomeSummary>>;
 
+function HomeErrorState({ message }: { message: string }) {
+  return (
+    <AppShell
+      eyebrow="低阻力启动提醒器"
+      title="演示环境当前没有成功连上数据库。"
+      description="页面没有直接白屏，是为了让你能在线定位数据库初始化问题。"
+    >
+      <DemoRuntimeError
+        title="首页数据读取失败"
+        message="通常是线上 SQLite demo 数据库没有在第一次 Prisma 查询前初始化完成，或者 DATABASE_URL 没有指向可用的 /tmp 路径。"
+        details={[
+          `当前 DATABASE_URL：${prismaSetupState.databaseUrl}`,
+          `目标数据库路径：${prismaSetupState.targetPath ?? "未解析到 sqlite 路径"}`,
+          `初始化状态：${prismaSetupState.setupError ?? "数据库快照复制步骤已执行"}`,
+          `本次 Prisma 错误：${message}`,
+        ]}
+      />
+    </AppShell>
+  );
+}
+
+function HomeContent({ summary }: { summary: HomeSummaryData }) {
   return (
     <AppShell
       eyebrow="低阻力启动提醒器"
@@ -199,4 +222,21 @@ export default async function Home() {
       </section>
     </AppShell>
   );
+}
+
+export default async function Home() {
+  let summary: HomeSummaryData | null = null;
+  let errorMessage: string | null = null;
+
+  try {
+    summary = await getTaskHomeSummary();
+  } catch (error) {
+    errorMessage = error instanceof Error ? error.message : "Unknown database error";
+  }
+
+  if (!summary) {
+    return <HomeErrorState message={errorMessage ?? "Unknown database error"} />;
+  }
+
+  return <HomeContent summary={summary} />;
 }

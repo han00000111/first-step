@@ -1,12 +1,35 @@
 import { AppShell } from "@/components/app-shell";
+import { DemoRuntimeError } from "@/components/demo-runtime-error";
 import { StatsCards } from "@/components/stats-cards";
 import { getDashboardMetrics } from "@/lib/metrics";
+import { prismaSetupState } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
-  const metrics = await getDashboardMetrics();
+type DashboardMetricsData = Awaited<ReturnType<typeof getDashboardMetrics>>;
 
+function DashboardErrorState({ message }: { message: string }) {
+  return (
+    <AppShell
+      eyebrow="统计看板"
+      title="看板当前没有成功连上演示数据库。"
+      description="这里不会直接白屏，方便你在线确认是否是数据库初始化问题。"
+    >
+      <DemoRuntimeError
+        title="看板数据读取失败"
+        message="通常是线上 SQLite demo 数据库没有准备好，导致 ReminderEvent 聚合查询无法执行。"
+        details={[
+          `当前 DATABASE_URL：${prismaSetupState.databaseUrl}`,
+          `目标数据库路径：${prismaSetupState.targetPath ?? "未解析到 sqlite 路径"}`,
+          `初始化状态：${prismaSetupState.setupError ?? "数据库快照复制步骤已执行"}`,
+          `本次 Prisma 错误：${message}`,
+        ]}
+      />
+    </AppShell>
+  );
+}
+
+function DashboardContent({ metrics }: { metrics: DashboardMetricsData }) {
   const summaryItems = [
     {
       label: "有效提醒总次数",
@@ -63,12 +86,8 @@ export default async function DashboardPage() {
                 {metrics.styleRows.map((row) => (
                   <tr key={row.key} className="border-t border-zinc-200">
                     <td className="px-4 py-3 text-zinc-800">{row.label}</td>
-                    <td className="px-4 py-3 text-zinc-500">
-                      {row.reminderCount} 次
-                    </td>
-                    <td className="px-4 py-3 text-zinc-800">
-                      {row.acceptanceRate}
-                    </td>
+                    <td className="px-4 py-3 text-zinc-500">{row.reminderCount} 次</td>
+                    <td className="px-4 py-3 text-zinc-800">{row.acceptanceRate}</td>
                     <td className="px-4 py-3 text-zinc-500">{row.delayRate}</td>
                     <td className="px-4 py-3 text-zinc-500">{row.rejectRate}</td>
                   </tr>
@@ -98,12 +117,8 @@ export default async function DashboardPage() {
                 {metrics.contextRows.map((row) => (
                   <tr key={row.key} className="border-t border-zinc-200">
                     <td className="px-4 py-3 text-zinc-800">{row.label}</td>
-                    <td className="px-4 py-3 text-zinc-500">
-                      {row.reminderCount} 次
-                    </td>
-                    <td className="px-4 py-3 text-zinc-800">
-                      {row.acceptanceRate}
-                    </td>
+                    <td className="px-4 py-3 text-zinc-500">{row.reminderCount} 次</td>
+                    <td className="px-4 py-3 text-zinc-800">{row.acceptanceRate}</td>
                     <td className="px-4 py-3 text-zinc-500">{row.delayRate}</td>
                     <td className="px-4 py-3 text-zinc-500">{row.rejectRate}</td>
                   </tr>
@@ -115,4 +130,21 @@ export default async function DashboardPage() {
       </section>
     </AppShell>
   );
+}
+
+export default async function DashboardPage() {
+  let metrics: DashboardMetricsData | null = null;
+  let errorMessage: string | null = null;
+
+  try {
+    metrics = await getDashboardMetrics();
+  } catch (error) {
+    errorMessage = error instanceof Error ? error.message : "Unknown database error";
+  }
+
+  if (!metrics) {
+    return <DashboardErrorState message={errorMessage ?? "Unknown database error"} />;
+  }
+
+  return <DashboardContent metrics={metrics} />;
 }

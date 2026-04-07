@@ -186,6 +186,12 @@ npm run deploy:check
 DATABASE_URL="file:/tmp/first-step-demo.db"
 ```
 
+注意：
+
+- 不要在 Vercel 上配置 `file:./dev.db`
+- 线上 demo 的 SQLite 文件必须指向 `/tmp`
+- 如果你漏配了 `DATABASE_URL`，代码会默认回退到 `file:/tmp/first-step-demo.db`
+
 ### 说明
 
 - 这是一个可部署的最小可行方案

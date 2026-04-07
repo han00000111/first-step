@@ -48,6 +48,15 @@ npm run deploy:check
 DATABASE_URL="file:/tmp/first-step-demo.db"
 ```
 
+不要使用：
+
+```bash
+DATABASE_URL="file:./dev.db"
+```
+
+因为 Vercel 线上实例不能把项目目录当作可写数据库目录。  
+演示版 SQLite 必须使用 `/tmp`。
+
 ### 5. 首次部署
 
 - 触发 `main` 部署后，会得到一个 Production Deployment
@@ -150,6 +159,7 @@ DATABASE_URL="file:/tmp/first-step-demo.db"
 
 - 公网演示使用 `prisma/demo.db` 快照
 - 运行时复制到 `/tmp` 供当前实例读写
+- 如果你漏配了 `DATABASE_URL`，运行时代码会自动回退到 `file:/tmp/first-step-demo.db`
 - 冷启动、扩容或不同实例之间不保证长期共享数据
 
 这意味着：
