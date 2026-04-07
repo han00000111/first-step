@@ -207,7 +207,7 @@ export async function respondToReminder(input: {
     }
 
     const scheduledFor = toScheduledForDate(input.scheduledForIso);
-    const resolvedDelayMinutes = Math.min(60, Math.max(1, input.delayMinutes || 10));
+    const resolvedDelayMinutes = Math.min(1440, Math.max(1, input.delayMinutes || 30));
     const responseMeta = input.responseType === "remind_later"
       ? {
           eventType: "delay" as const,

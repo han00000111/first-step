@@ -14,6 +14,7 @@ import {
 } from "@/app/actions/reminder-actions";
 import { FormSubmitButton } from "@/components/form-submit-button";
 import type { DueReminderItem } from "@/lib/reminder-service";
+import { useUiStore } from "@/stores/ui-store";
 
 type ReminderCenterProps = {
   reminders: DueReminderItem[];
@@ -21,6 +22,10 @@ type ReminderCenterProps = {
 
 export function ReminderCenter({ reminders }: ReminderCenterProps) {
   const [, startTransition] = useTransition();
+  const reminderDelayMinutes = useUiStore((state) => state.reminderDelayMinutes);
+  const setReminderDelayMinutes = useUiStore(
+    (state) => state.setReminderDelayMinutes,
+  );
   const reminderPayload = useMemo(
     () =>
       reminders.map((reminder) => ({
@@ -43,14 +48,60 @@ export function ReminderCenter({ reminders }: ReminderCenterProps) {
 
   if (reminders.length === 0) {
     return (
-      <div className="rounded-[28px] border border-dashed border-zinc-300 bg-white/75 p-6 text-sm leading-7 text-zinc-500">
-        当前没有需要立刻提醒的任务。你可以去任务页手动触发提醒，或者等下一个候选提醒时间到达。
+      <div className="space-y-4">
+        <div className="rounded-[24px] border border-white/80 bg-white/92 p-4 shadow-[0_18px_48px_-30px_rgba(15,23,42,0.2)]">
+          <div className="text-sm font-medium text-zinc-800">稍后提醒设置</div>
+          <div className="mt-2 text-sm leading-6 text-zinc-500">
+            当前统一按这个时长延后提醒，范围 1 分钟到 24 小时。
+          </div>
+          <div className="mt-3 flex items-center gap-3 rounded-[20px] border border-zinc-200 bg-zinc-50/80 px-4 py-3">
+            <input
+              value={reminderDelayMinutes}
+              onChange={(event) =>
+                setReminderDelayMinutes(Number(event.target.value || 30))
+              }
+              type="number"
+              min={1}
+              max={1440}
+              className="w-full bg-transparent text-sm text-zinc-900"
+            />
+            <span className="shrink-0 text-sm text-zinc-500">分钟后</span>
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-dashed border-zinc-300 bg-white/75 p-6 text-sm leading-7 text-zinc-500">
+          当前没有需要立刻提醒的任务。你可以去任务页手动触发提醒，或者等下一个候选提醒时间到达。
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      <section className="rounded-[24px] border border-white/80 bg-white/92 p-4 shadow-[0_18px_48px_-30px_rgba(15,23,42,0.2)]">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-sm font-medium text-zinc-800">稍后提醒设置</div>
+            <div className="mt-1 text-sm leading-6 text-zinc-500">
+              当前页所有“稍后提醒我”都会使用这个时长，范围 1 分钟到 24 小时。
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-[20px] border border-zinc-200 bg-zinc-50/80 px-4 py-3 sm:min-w-56">
+            <input
+              value={reminderDelayMinutes}
+              onChange={(event) =>
+                setReminderDelayMinutes(Number(event.target.value || 30))
+              }
+              type="number"
+              min={1}
+              max={1440}
+              className="w-full bg-transparent text-sm text-zinc-900"
+            />
+            <span className="shrink-0 text-sm text-zinc-500">分钟后</span>
+          </div>
+        </div>
+      </section>
+
       {reminders.map((reminder) => (
         <article
           key={`${reminder.taskId}-${reminder.scheduledForIso}`}
@@ -127,6 +178,11 @@ export function ReminderCenter({ reminders }: ReminderCenterProps) {
                 <input type="hidden" name="messageShown" value={reminder.messageShown} />
                 <input
                   type="hidden"
+                  name="delayMinutes"
+                  value={String(reminderDelayMinutes)}
+                />
+                <input
+                  type="hidden"
                   name="scheduledForIso"
                   value={reminder.scheduledForIso}
                 />
@@ -136,22 +192,21 @@ export function ReminderCenter({ reminders }: ReminderCenterProps) {
                 >
                   过多久再提醒更合适？
                 </label>
-                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-                  <div className="flex items-center rounded-2xl border border-zinc-200 bg-white px-3">
-                    <input
-                      id={`delay-${reminder.taskId}`}
-                      name="delayMinutes"
-                      type="number"
-                      min={1}
-                      max={60}
-                      defaultValue={10}
-                      className="w-full bg-transparent py-3 text-sm text-zinc-900"
-                    />
-                    <span className="shrink-0 text-sm text-zinc-500">分钟后</span>
+                <div
+                  id={`delay-${reminder.taskId}`}
+                  className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3"
+                >
+                  <div>
+                    <div className="text-sm font-medium text-zinc-900">
+                      当前设为 {reminderDelayMinutes} 分钟后
+                    </div>
+                    <div className="mt-1 text-xs text-zinc-500">
+                      你可以在列表顶部把这个值改成 24 小时内的任意分钟数。
+                    </div>
                   </div>
                   <FormSubmitButton
                     pendingText="稍等..."
-                    className="w-full border border-zinc-200 bg-white px-4 py-3 text-zinc-700 hover:border-emerald-200 hover:bg-emerald-50"
+                    className="shrink-0 border border-zinc-200 bg-white px-4 py-3 text-zinc-700 hover:border-emerald-200 hover:bg-emerald-50"
                   >
                     <span className="inline-flex items-center gap-2">
                       <Clock3 className="h-4 w-4" />
@@ -159,7 +214,6 @@ export function ReminderCenter({ reminders }: ReminderCenterProps) {
                     </span>
                   </FormSubmitButton>
                 </div>
-                <div className="mt-2 text-xs text-zinc-500">可以设置 1 到 60 分钟。</div>
               </form>
 
               <form action={respondToReminderAction}>

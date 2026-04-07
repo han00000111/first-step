@@ -8,6 +8,7 @@ import {
   inferContextType,
   inferReminderStyle,
 } from "@/lib/reminder-engine";
+import { buildReminderMessage } from "@/lib/reminder-message";
 import {
   getContextLabel,
   getReminderStyleLabel,
@@ -185,13 +186,48 @@ export async function archiveTask(taskId: string) {
 }
 
 export async function triggerManualReminder(taskId: string) {
-  return prisma.task.update({
-    where: {
-      id: taskId,
-    },
-    data: {
-      nextReminderAt: computeManualTriggerReminderAt(),
-    },
+  return prisma.$transaction(async (tx) => {
+    const task = await tx.task.findUnique({
+      where: {
+        id: taskId,
+      },
+    });
+
+    if (!task || task.status !== "active") {
+      return null;
+    }
+
+    const scheduledFor = computeManualTriggerReminderAt();
+    const messageShown = buildReminderMessage({
+      content: task.content,
+      parsedAction: task.parsedAction,
+      reminderStyle: task.reminderStyle,
+      dueAt: task.dueAt,
+    });
+
+    await tx.task.update({
+      where: {
+        id: taskId,
+      },
+      data: {
+        nextReminderAt: scheduledFor,
+      },
+    });
+
+    await tx.reminderEvent.create({
+      data: {
+        taskId,
+        eventType: "reminder_sent",
+        messageShown,
+        scheduledFor,
+        happenedAt: scheduledFor,
+      },
+    });
+
+    return {
+      taskId,
+      scheduledFor,
+    };
   });
 }
 

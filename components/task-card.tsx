@@ -100,7 +100,7 @@ export function TaskCard({ task }: TaskCardProps) {
           </dl>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        <div className="relative z-10 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {!task.isArchived ? (
             <button
               type="button"

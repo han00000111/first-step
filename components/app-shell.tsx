@@ -18,7 +18,7 @@ export function AppShell({
   return (
     <div className="min-h-screen">
       <TopNav />
-      <main className="mx-auto w-full max-w-6xl px-4 pb-28 pt-4 sm:px-6 md:pb-16 md:pt-6 lg:px-8 lg:pt-8">
+      <main className="mx-auto w-full max-w-6xl px-4 pb-36 pt-4 sm:px-6 md:pb-16 md:pt-6 lg:px-8 lg:pt-8">
         <section className="relative mb-5 overflow-hidden rounded-[28px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.92),rgba(245,251,247,0.96))] px-5 py-5 shadow-[0_22px_64px_-36px_rgba(15,23,42,0.24)] backdrop-blur sm:px-7 sm:py-7 md:mb-8 md:rounded-[32px] md:px-8 md:py-8">
           <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-80 bg-[radial-gradient(circle_at_top,rgba(110,231,183,0.16),transparent_58%)] lg:block" />
           <div className="pointer-events-none absolute -left-10 top-6 h-24 w-24 rounded-full bg-amber-100/55 blur-2xl md:h-28 md:w-28" />

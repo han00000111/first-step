@@ -29,10 +29,10 @@ export async function respondToReminderAction(formData: FormData) {
   const responseType = String(formData.get("responseType") ?? "");
   const messageShown = String(formData.get("messageShown") ?? "");
   const scheduledForIso = String(formData.get("scheduledForIso") ?? "");
-  const parsedDelayMinutes = Number(formData.get("delayMinutes") ?? "10");
+  const parsedDelayMinutes = Number(formData.get("delayMinutes") ?? "30");
   const delayMinutes = Number.isFinite(parsedDelayMinutes)
-    ? Math.min(60, Math.max(1, Math.round(parsedDelayMinutes)))
-    : 10;
+    ? Math.min(1440, Math.max(1, Math.round(parsedDelayMinutes)))
+    : 30;
 
   if (
     !taskId ||

@@ -70,8 +70,8 @@ export function TopNav() {
         </div>
       </header>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-emerald-100/90 bg-[rgba(255,253,248,0.97)] px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2 shadow-[0_-12px_30px_-24px_rgba(15,23,42,0.3)] backdrop-blur md:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-4 gap-2">
+      <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-40 border-t border-emerald-100/90 bg-[rgba(255,253,248,0.97)] px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2 shadow-[0_-12px_30px_-24px_rgba(15,23,42,0.3)] backdrop-blur md:hidden">
+        <div className="pointer-events-auto mx-auto grid max-w-md grid-cols-4 gap-2">
           {navItems.map((item) => {
             const isActive =
               item.href === "/" ? pathname === item.href : pathname.startsWith(item.href);
