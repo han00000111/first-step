@@ -56,8 +56,7 @@
 
 ## GitHub 仓库
 
-项目代码：  
-**[点击查看 GitHub 仓库](这里替换成你的 GitHub 仓库链接)**
+项目代码：[https://first-step-rouge.vercel.app/]
 
 ---
 
