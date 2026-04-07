@@ -14,13 +14,18 @@ import {
 } from "@/app/actions/reminder-actions";
 import { FormSubmitButton } from "@/components/form-submit-button";
 import type { DueReminderItem } from "@/lib/reminder-service";
+import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
 
 type ReminderCenterProps = {
   reminders: DueReminderItem[];
+  highlightedTaskId?: string | null;
 };
 
-export function ReminderCenter({ reminders }: ReminderCenterProps) {
+export function ReminderCenter({
+  reminders,
+  highlightedTaskId = null,
+}: ReminderCenterProps) {
   const [, startTransition] = useTransition();
   const reminderDelayMinutes = useUiStore((state) => state.reminderDelayMinutes);
   const setReminderDelayMinutes = useUiStore(
@@ -45,6 +50,25 @@ export function ReminderCenter({ reminders }: ReminderCenterProps) {
       void markRemindersAsSentAction(reminderPayload);
     });
   }, [reminderPayload, startTransition]);
+
+  useEffect(() => {
+    if (!highlightedTaskId) {
+      return;
+    }
+
+    const element = document.getElementById(`reminder-${highlightedTaskId}`);
+
+    if (!element) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      element.scrollIntoView({
+        block: "start",
+        behavior: "smooth",
+      });
+    }, 120);
+  }, [highlightedTaskId]);
 
   if (reminders.length === 0) {
     return (
@@ -105,10 +129,21 @@ export function ReminderCenter({ reminders }: ReminderCenterProps) {
       {reminders.map((reminder) => (
         <article
           key={`${reminder.taskId}-${reminder.scheduledForIso}`}
-          className="rounded-[28px] border border-white/80 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdfb_100%)] p-5 shadow-[0_20px_56px_-32px_rgba(15,23,42,0.24)] sm:p-6"
+          id={`reminder-${reminder.taskId}`}
+          className={cn(
+            "rounded-[28px] border border-white/80 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdfb_100%)] p-5 shadow-[0_20px_56px_-32px_rgba(15,23,42,0.24)] transition sm:p-6",
+            highlightedTaskId === reminder.taskId
+              ? "border-emerald-300 shadow-[0_24px_60px_-34px_rgba(16,185,129,0.42)] ring-2 ring-emerald-100"
+              : "",
+          )}
         >
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+              {highlightedTaskId === reminder.taskId ? (
+                <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 font-medium text-emerald-900">
+                  来自通知
+                </span>
+              ) : null}
               <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-800">
                 <BellRing className="h-3.5 w-3.5" />
                 当前应提醒

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { DeviceNotificationBanner } from "@/components/device-notification-banner";
 import { TopNav } from "@/components/top-nav";
 
 type AppShellProps = {
@@ -35,6 +36,7 @@ export function AppShell({
             </p>
           </div>
         </section>
+        <DeviceNotificationBanner />
         {children}
       </main>
     </div>

@@ -4,7 +4,15 @@ import { getDueReminders } from "@/lib/reminder-service";
 
 export const dynamic = "force-dynamic";
 
-export default async function RemindersPage() {
+export default async function RemindersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ taskId?: string | string[] }>;
+}) {
+  const resolvedSearchParams = await searchParams;
+  const highlightedTaskId = Array.isArray(resolvedSearchParams.taskId)
+    ? resolvedSearchParams.taskId[0] ?? null
+    : resolvedSearchParams.taskId ?? null;
   const reminders = await getDueReminders();
 
   return (
@@ -29,12 +37,12 @@ export default async function RemindersPage() {
         <div className="col-span-2 rounded-[22px] border border-white/80 bg-white/92 p-4 shadow-[0_18px_50px_-28px_rgba(15,23,42,0.22)] md:col-span-1">
           <div className="text-xs text-zinc-500">当前规则</div>
           <div className="mt-2 text-sm leading-6 text-zinc-700">
-            支持截止前候选提醒、自定义 1 到 60 分钟延后，以及“今天先放一下”。
+            支持截止前候选提醒、自定义 1 分钟到 24 小时延后，以及“今天先放一下”。
           </div>
         </div>
       </section>
 
-      <ReminderCenter reminders={reminders} />
+      <ReminderCenter reminders={reminders} highlightedTaskId={highlightedTaskId} />
     </AppShell>
   );
 }

@@ -1,0 +1,16 @@
+{
+  "name": "第一步",
+  "short_name": "第一步",
+  "description": "面向拖延型用户的低阻力启动提醒器",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f5ef",
+  "theme_color": "#f7f5ef",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48 32x32 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
