@@ -115,6 +115,7 @@ export function DeviceNotificationBanner() {
   const [isBusy, setIsBusy] = useState(false);
 
   const supportDescription = useMemo(() => {
+<<<<<<< Updated upstream
     if (!runtime.hasNotificationApi || !runtime.hasServiceWorker) {
       return "当前浏览器还不支持通知权限或 service worker，先继续使用站内提醒。";
     }
@@ -193,6 +194,22 @@ export function DeviceNotificationBanner() {
     },
     [persistSubscription, runtime.canUsePush, runtime.permission],
   );
+=======
+    if (permission === "unsupported") {
+      return "当前浏览器还不支持系统通知，站内提醒会继续保留。";
+    }
+
+    if (permission === "denied") {
+      return "通知权限已被关闭。要恢复设备通知，需要到浏览器设置里重新开启。";
+    }
+
+    if (permission === "granted") {
+      return "系统通知已接通。到点后会优先尝试发出设备通知。";
+    }
+
+    return "开启后，到提醒时间时会先尝试发出系统通知，同时保留站内提醒。";
+  }, [permission]);
+>>>>>>> Stashed changes
 
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
@@ -399,7 +416,11 @@ export function DeviceNotificationBanner() {
     <section
       className={cn(
         "mb-4 rounded-[22px] border p-3.5 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.18)] sm:mb-5 sm:rounded-[24px] sm:p-5",
+<<<<<<< Updated upstream
         subscription
+=======
+        isGranted
+>>>>>>> Stashed changes
           ? "border-emerald-100 bg-[linear-gradient(180deg,#f8fffb_0%,#eef9f2_100%)]"
           : runtime.permission === "denied" || runtime.needsInstallPrompt
             ? "border-amber-100 bg-[linear-gradient(180deg,#fffdf8_0%,#faf4e9_100%)]"
@@ -425,8 +446,13 @@ export function DeviceNotificationBanner() {
           {runtime.permission !== "granted" || !subscription ? (
             <button
               type="button"
+<<<<<<< Updated upstream
               onClick={() => void handleEnableNotifications()}
               disabled={isBusy || runtime.missingConfig || (!runtime.canUsePush && !runtime.needsInstallPrompt)}
+=======
+              onClick={() => void handleRequestPermission()}
+              disabled={isBusy}
+>>>>>>> Stashed changes
               className="inline-flex min-h-11 items-center justify-center rounded-[18px] bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-[0_14px_28px_-20px_rgba(16,185,129,0.75)] transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {runtime.permission === "granted" ? "连接设备提醒" : "开启设备提醒"}

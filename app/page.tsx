@@ -97,9 +97,6 @@ function HomeContent({ summary }: { summary: HomeSummaryData }) {
             {summary.archivedCount}
           </div>
         </div>
-        <div className="col-span-2 rounded-[22px] border border-emerald-100 bg-[linear-gradient(180deg,#fbfffd_0%,#f1faf4_100%)] px-4 py-4 text-sm leading-6 text-zinc-700 shadow-[0_16px_40px_-28px_rgba(15,23,42,0.2)]">
-          先把任务放进来，再决定提醒时机。目标不是监督完成，而是帮用户迈出第一步。
-        </div>
       </section>
 
       <section className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">

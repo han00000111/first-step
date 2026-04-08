@@ -100,56 +100,64 @@ export function TaskCard({ task }: TaskCardProps) {
           </dl>
         </div>
 
-        <div className="relative z-10 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          {!task.isArchived ? (
-            <button
-              type="button"
-              onClick={() => setEditingTaskId(isEditing ? null : task.id)}
-              className="min-h-11 rounded-[18px] border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-400"
-            >
-              {isEditing ? "收起编辑" : "编辑任务"}
-            </button>
-          ) : null}
+        <div className="relative z-10 rounded-[22px] border border-zinc-100 bg-zinc-50/85 p-3">
+          <div className="mb-2 flex items-center justify-between px-1">
+            <div className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-500">
+              操作
+            </div>
+            <div className="text-[11px] text-zinc-400">
+              {task.isArchived ? "已归档任务" : "先把提醒推出来"}
+            </div>
+          </div>
 
-          {!task.isArchived ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {!task.isArchived ? (
+              <form
+                className="sm:col-span-2"
+                action={triggerTaskReminderAction.bind(null, task.id)}
+              >
+                <FormSubmitButton
+                  pendingText="处理中..."
+                  className="w-full bg-emerald-600 text-white shadow-[0_12px_30px_-20px_rgba(5,150,105,0.9)] hover:bg-emerald-700"
+                >
+                  手动触发提醒
+                </FormSubmitButton>
+              </form>
+            ) : null}
+
+            {!task.isArchived ? (
+              <button
+                type="button"
+                onClick={() => setEditingTaskId(isEditing ? null : task.id)}
+                className="min-h-11 rounded-[18px] border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50"
+              >
+                {isEditing ? "收起编辑" : "编辑任务"}
+              </button>
+            ) : null}
+
+            {!task.isArchived ? (
+              <form action={archiveTaskAction.bind(null, task.id)}>
+                <FormSubmitButton
+                  pendingText="归档中..."
+                  className="w-full border border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+                >
+                  归档
+                </FormSubmitButton>
+              </form>
+            ) : null}
+
             <form
-              className="col-span-2 sm:col-span-1"
-              action={triggerTaskReminderAction.bind(null, task.id)}
+              className={cn(!task.isArchived ? "sm:col-span-2" : undefined)}
+              action={deleteTaskAction.bind(null, task.id)}
             >
               <FormSubmitButton
-                pendingText="处理中..."
-                className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
+                pendingText="删除中..."
+                className="w-full border border-rose-200 bg-white text-rose-700 hover:border-rose-300 hover:bg-rose-50/80"
               >
-                手动触发提醒
+                删除
               </FormSubmitButton>
             </form>
-          ) : null}
-
-          {!task.isArchived ? (
-            <form className="col-span-1" action={archiveTaskAction.bind(null, task.id)}>
-              <FormSubmitButton
-                pendingText="归档中..."
-                className="w-full border border-zinc-200 bg-white text-zinc-700 hover:border-zinc-400"
-              >
-                归档
-              </FormSubmitButton>
-            </form>
-          ) : null}
-
-          <form
-            className={cn(
-              "col-span-2 sm:col-span-1",
-              task.isArchived ? "sm:w-full" : undefined,
-            )}
-            action={deleteTaskAction.bind(null, task.id)}
-          >
-            <FormSubmitButton
-              pendingText="删除中..."
-              className="w-full border border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300"
-            >
-              删除
-            </FormSubmitButton>
-          </form>
+          </div>
         </div>
       </div>
 
