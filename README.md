@@ -179,7 +179,14 @@ iPhone 上要生效，需要：
 3. 从主屏幕重新打开
 4. 再开启设备通知权限
 
-当前仍做不到原生闹钟级稳定提醒，详见：
+当前仍做不到原生闹钟级稳定提醒。并且为了避免 `dev` 分支的 Preview Deployment 被 Vercel cron 配置拦截，仓库里不再提交自动调度配置。
+
+现在的策略是：
+
+- Local / Preview：用页面里的“同步到点提醒”手动验证
+- Production：如需自动到点推送，在 Vercel 项目侧单独配置定时请求或外部调度器，不放在仓库里
+
+更多边界说明见：
 
 - [docs/notification-options.md](./docs/notification-options.md)
 

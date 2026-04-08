@@ -126,15 +126,23 @@ npm run db:reset:production
 
 1. 正确的 Production / Preview Postgres
 2. Web Push 环境变量
-3. [vercel.json](../vercel.json) 中的 cron 调度
+3. 一个单独配置在平台侧的定时调度器
 
-Production 会自动调度：
+为了避免 `dev` 分支的 Preview Deployment 因仓库内 `crons` 配置而失败，项目里已经移除了 `vercel.json` 的 cron 定义。
+
+当前推荐策略：
+
+- Preview：继续用页面里的“同步到点提醒”手动验证
+- Production：如果你要自动到点推送，在 Vercel 项目侧单独配置一个定时请求，目标仍然是：
 
 ```bash
 /api/push/dispatch-due
 ```
 
-Preview 更适合手动验证推送链路，不适合作为稳定自动提醒环境。
+这样可以同时满足：
+
+- `dev` 不再被 cron 配置拦住
+- `master` 仍然保留后续接入正式调度的入口
 
 ## 回滚方式
 
