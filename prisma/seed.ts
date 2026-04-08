@@ -33,20 +33,30 @@ function resolveProfileFromArgs() {
   if (profileIndex >= 0) {
     const nextValue = process.argv[profileIndex + 1];
 
-    if (nextValue === "demo" || nextValue === "preview" || nextValue === "local") {
+    if (
+      nextValue === "demo" ||
+      nextValue === "preview" ||
+      nextValue === "local" ||
+      nextValue === "production"
+    ) {
       return nextValue satisfies SeedProfile;
     }
 
-    throw new Error("Invalid --profile value. Use demo, preview or local.");
+    throw new Error("Invalid --profile value. Use demo, preview, local or production.");
   }
 
   return resolveSeedProfile();
 }
 
 function buildScenario(profile: SeedProfile, now: Date) {
+  const datasetProfile = profile === "production" ? "demo" : profile;
   const tomorrowMorning = setMinutes(setHours(addDays(now, 1), 9), 0);
   const prefix =
-    profile === "demo" ? "" : profile === "preview" ? "Preview · " : "Local · ";
+    datasetProfile === "demo"
+      ? ""
+      : datasetProfile === "preview"
+        ? "Preview · "
+        : "Local · ";
 
   const resumeTask: SeedTaskInput = {
     key: "resume",
@@ -55,7 +65,7 @@ function buildScenario(profile: SeedProfile, now: Date) {
     dueAt: addHours(now, 18),
     contextType: "pc",
     reminderStyle: "minimal_action",
-    nextReminderAt: profile === "preview" ? subMinutes(now, 2) : null,
+    nextReminderAt: datasetProfile === "preview" ? subMinutes(now, 2) : null,
   };
 
   const hrReplyTask: SeedTaskInput = {
@@ -65,7 +75,7 @@ function buildScenario(profile: SeedProfile, now: Date) {
     dueAt: addDays(now, 1),
     contextType: "mobile",
     reminderStyle: "gentle",
-    nextReminderAt: addMinutes(now, profile === "local" ? 20 : 10),
+    nextReminderAt: addMinutes(now, datasetProfile === "local" ? 20 : 10),
   };
 
   const jobApplyTask: SeedTaskInput = {
@@ -75,7 +85,7 @@ function buildScenario(profile: SeedProfile, now: Date) {
     dueAt: addHours(now, 6),
     contextType: "pc",
     reminderStyle: "ddl_push",
-    nextReminderAt: profile === "preview" ? addMinutes(now, 30) : tomorrowMorning,
+    nextReminderAt: datasetProfile === "preview" ? addMinutes(now, 30) : tomorrowMorning,
   };
 
   const studyTask: SeedTaskInput = {
@@ -147,7 +157,7 @@ function buildScenario(profile: SeedProfile, now: Date) {
       messageShown: "先回一句消息也可以",
       scheduledFor: hrReplySlot,
       happenedAt: addMinutes(hrReplySlot, 1),
-      delayMinutes: profile === "preview" ? 25 : 10,
+      delayMinutes: datasetProfile === "preview" ? 25 : 10,
     },
     {
       taskKey: "job-apply",
@@ -189,6 +199,7 @@ async function main() {
   const now = new Date();
   const scenario = buildScenario(profile, now);
 
+  await prisma.devicePushSubscription.deleteMany();
   await prisma.reminderEvent.deleteMany();
   await prisma.task.deleteMany();
 
@@ -226,6 +237,7 @@ async function main() {
   console.log(
     [
       `Seed complete for profile: ${profile}`,
+      `Dataset used: ${profile === "production" ? "demo" : profile}`,
       `Tasks: ${scenario.tasks.length}`,
       `Reminder events: ${scenario.events.length}`,
       "Includes: 求职、学习、电脑、线下、不同提醒风格、接受/延后/拒绝样本",

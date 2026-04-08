@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | local | 本地开发 | 本地 Postgres | local | 只给开发和调试使用 |
 | preview | Vercel Preview | 独立测试 Postgres | preview | 用于预览和验收 |
-| production | Vercel Production | 稳定演示 Postgres | demo | 用于正式演示 |
+| production | Vercel Production | 稳定演示 Postgres | production | 用于正式演示 |
 
 ## 核心原则
 
@@ -47,6 +47,7 @@
 - `local`
 - `preview`
 - `demo`
+- `production`
 
 #### `DATABASE_URL`
 
@@ -80,10 +81,15 @@ DIRECT_URL="<preview direct postgres url>"
 
 ```bash
 APP_ENV="production"
-SEED_PROFILE="demo"
+SEED_PROFILE="production"
 DATABASE_URL="<production pooled postgres url>"
 DIRECT_URL="<production direct postgres url>"
 ```
+
+说明：
+
+- `production` profile 会复用 `demo` 数据集
+- 这样生产环境仍然使用稳定演示数据，但配置语义更清楚
 
 ## 分支绑定建议
 

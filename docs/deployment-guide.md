@@ -43,6 +43,10 @@ APP_ENV="preview"
 SEED_PROFILE="preview"
 DATABASE_URL="<preview pooled postgres url>"
 DIRECT_URL="<preview direct postgres url>"
+VAPID_SUBJECT="mailto:you@example.com"
+VAPID_PUBLIC_KEY="<preview web push public key>"
+VAPID_PRIVATE_KEY="<preview web push private key>"
+NEXT_PUBLIC_VAPID_PUBLIC_KEY="<same as VAPID_PUBLIC_KEY>"
 ```
 
 ### Vercel Production
@@ -51,10 +55,24 @@ DIRECT_URL="<preview direct postgres url>"
 
 ```bash
 APP_ENV="production"
-SEED_PROFILE="demo"
+SEED_PROFILE="production"
 DATABASE_URL="<production pooled postgres url>"
 DIRECT_URL="<production direct postgres url>"
+VAPID_SUBJECT="mailto:you@example.com"
+VAPID_PUBLIC_KEY="<production web push public key>"
+VAPID_PRIVATE_KEY="<production web push private key>"
+NEXT_PUBLIC_VAPID_PUBLIC_KEY="<same as VAPID_PUBLIC_KEY>"
 ```
+
+### Web Push 密钥生成
+
+如果你还没有 VAPID 密钥，可以在本地执行：
+
+```bash
+npm run push:vapid
+```
+
+然后把生成的公钥、私钥和联系邮箱分别填进对应环境。
 
 ## 分支与环境的对应关系
 
@@ -113,22 +131,52 @@ npm run db:seed:preview
 1. 在本地 shell 临时切到 Preview 的 `DATABASE_URL` / `DIRECT_URL` 后执行
 2. 在 CI / 平台任务里执行
 
+说明：
+
+- Preview 可以验证推送订阅、测试提醒和手动“同步到点提醒”
+- Vercel Cron 默认只跑生产环境，所以 Preview 不适合作为稳定自动到点提醒环境
+
 ## Production 环境初始化
 
 当 Production 数据库首次创建后，执行：
 
 ```bash
 npm run db:migrate:deploy
-npm run db:seed:demo
+npm run db:seed:production
 ```
 
-Production 的 `demo` seed 代表稳定演示数据集。
+`production` profile 会复用 `demo` 数据集。
+这样做的目的不是多造一套数据，而是让生产环境配置保持语义清晰：
+
+- `demo`：代表稳定演示数据集
+- `production`：代表生产环境使用这套稳定演示数据
 
 如果演示环境被现场操作污染，也可以再次执行：
 
 ```bash
-npm run db:reset:demo
+npm run db:reset:production
 ```
+
+### Production 的设备提醒
+
+当前最小可用方案依赖：
+
+1. Production 环境里的 Web Push 密钥
+2. 生产站点成功注册的 Push Subscription
+3. 仓库根目录的 [vercel.json](../vercel.json) 中 cron 调度
+
+cron 会周期性请求：
+
+```bash
+/api/push/dispatch-due
+```
+
+这条接口会：
+
+1. 找出已经到提醒时间、但还没发出设备提醒的任务
+2. 向活跃订阅发送 Web Push
+3. 发送成功后再写入 `reminder_sent`
+4. 站内提醒中心继续展示同一条提醒
 
 ## 为什么不再使用 SQLite 快照
 
@@ -158,6 +206,17 @@ npm run db:reset:demo
 2. Vercel 生成 Preview Deployment
 3. Preview 数据可以自由测试
 4. 不影响 Production 演示数据
+5. 可以测试“开启设备提醒”和“发送测试提醒”
+6. 如需验证到点提醒，用页面里的“同步到点提醒”手动触发
+
+### Production 设备提醒验收
+
+1. 在生产站点开启设备提醒
+2. 在移动端或桌面端点击“发送测试提醒”
+3. 手动创建一条很快到期的任务
+4. 等待 cron 或手动触发 `/api/push/dispatch-due`
+5. 设备收到系统通知
+6. 点击通知后回到提醒页对应任务
 
 ## 回滚方式
 

@@ -71,3 +71,18 @@ model ReminderEvent {
   @@index([taskId, happenedAt])
   @@index([eventType, happenedAt])
 }
+
+model DevicePushSubscription {
+  id         String   @id @default(cuid())
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  platform   String?
+  isActive   Boolean  @default(true)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([isActive, updatedAt])
+}

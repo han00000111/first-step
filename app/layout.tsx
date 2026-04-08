@@ -17,6 +17,11 @@ export const metadata: Metadata = {
   title: "第一步",
   description: "面向拖延型用户的低阻力启动提醒器 MVP",
   manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "第一步",
+    statusBarStyle: "default",
+  },
 };
 
 export default function RootLayout({

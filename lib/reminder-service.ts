@@ -34,6 +34,35 @@ export type DueReminderItem = {
   scheduledForLabel: string;
 };
 
+function buildDueReminderItem(task: {
+  id: string;
+  content: string;
+  parsedAction: string;
+  contextType: string;
+  reminderStyle: string;
+  dueAt: Date | null;
+  nextReminderAt: Date | null;
+}) {
+  const reminderStyle = task.reminderStyle as ReminderStyleValue;
+
+  return {
+    taskId: task.id,
+    content: task.content,
+    parsedAction: task.parsedAction,
+    contextLabel: getContextLabel(task.contextType as never),
+    reminderStyleLabel: getReminderStyleLabel(task.reminderStyle as never),
+    messageShown: buildReminderMessage({
+      content: task.content,
+      parsedAction: task.parsedAction,
+      reminderStyle,
+      dueAt: task.dueAt,
+    }),
+    dueAtLabel: task.dueAt ? formatReminderTime(task.dueAt) : null,
+    scheduledForIso: task.nextReminderAt!.toISOString(),
+    scheduledForLabel: formatReminderTime(task.nextReminderAt!),
+  } satisfies DueReminderItem;
+}
+
 function formatReminderTime(value: Date) {
   return format(value, "MM月dd日 HH:mm", {
     locale: zhCN,
@@ -138,26 +167,53 @@ export async function getDueReminders(baseTime = new Date()) {
     ],
   });
 
-  return tasks.map((task) => {
-    const messageShown = buildReminderMessage({
-      content: task.content,
-      parsedAction: task.parsedAction,
-      reminderStyle: task.reminderStyle as ReminderStyleValue,
-      dueAt: task.dueAt,
-    });
+  return tasks.map(buildDueReminderItem);
+}
 
-    return {
-      taskId: task.id,
-      content: task.content,
-      parsedAction: task.parsedAction,
-      contextLabel: getContextLabel(task.contextType),
-      reminderStyleLabel: getReminderStyleLabel(task.reminderStyle),
-      messageShown,
-      dueAtLabel: task.dueAt ? formatReminderTime(task.dueAt) : null,
-      scheduledForIso: task.nextReminderAt!.toISOString(),
-      scheduledForLabel: formatReminderTime(task.nextReminderAt!),
-    } satisfies DueReminderItem;
+export async function getUnsentDueReminders(baseTime = new Date()) {
+  const tasks = await prisma.task.findMany({
+    where: {
+      status: "active",
+      nextReminderAt: {
+        not: null,
+        lte: baseTime,
+      },
+    },
+    orderBy: [
+      {
+        nextReminderAt: "asc",
+      },
+      {
+        createdAt: "asc",
+      },
+    ],
   });
+
+  if (tasks.length === 0) {
+    return [];
+  }
+
+  const existingSentEvents = await prisma.reminderEvent.findMany({
+    where: {
+      eventType: "reminder_sent",
+      OR: tasks.map((task) => ({
+        taskId: task.id,
+        scheduledFor: task.nextReminderAt!,
+      })),
+    },
+    select: {
+      taskId: true,
+      scheduledFor: true,
+    },
+  });
+
+  const sentSlots = new Set(
+    existingSentEvents.map((event) => `${event.taskId}:${event.scheduledFor?.toISOString()}`),
+  );
+
+  return tasks
+    .filter((task) => !sentSlots.has(`${task.id}:${task.nextReminderAt?.toISOString()}`))
+    .map(buildDueReminderItem);
 }
 
 // “有效提醒”以实际展示为准，因此这里做幂等写入，避免刷新页面时重复计数。

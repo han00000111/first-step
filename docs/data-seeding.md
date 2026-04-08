@@ -2,7 +2,7 @@
 
 ## 目标
 
-这套 seed 不是为了“生成一些测试数据”而已，而是为了明确区分三种用途：
+这套 seed 不是为了“生成一些测试数据”而已，而是为了明确区分四种用途：
 
 1. 本地开发数据
 2. Preview 测试数据
@@ -50,6 +50,25 @@ npm run db:seed:preview
 npm run db:seed:demo
 ```
 
+### `production`
+
+用途：
+
+- Production 环境初始化
+- 在生产环境中显式声明“使用稳定演示数据”
+
+命令：
+
+```bash
+npm run db:seed:production
+```
+
+说明：
+
+- `production` 不会生成另一套新数据
+- 它会复用 `demo` 数据集
+- 保留这个 profile 名称，是为了让生产环境配置更直观
+
 重置演示数据：
 
 ```bash
@@ -58,7 +77,7 @@ npm run db:reset:demo
 
 ## 数据内容设计
 
-三套 profile 都保留同一类场景：
+四套 profile 都保留同一类场景：
 
 - 求职任务
 - 学习任务
@@ -70,6 +89,7 @@ npm run db:reset:demo
 区别在于用途：
 
 - `demo` 保持稳定演示内容
+- `production` 在生产环境里复用 `demo` 数据集
 - `preview` 更适合测试和验收
 - `local` 更适合开发调试
 
@@ -103,7 +123,7 @@ npm run db:seed:preview
 
 ```bash
 npm run db:migrate:deploy
-npm run db:seed:demo
+npm run db:seed:production
 ```
 
 ## 注意

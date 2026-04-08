@@ -1,5 +1,5 @@
 export type AppEnvironment = "local" | "preview" | "production";
-export type SeedProfile = "local" | "preview" | "demo";
+export type SeedProfile = "local" | "preview" | "demo" | "production";
 
 const supportedAppEnvironments = new Set<AppEnvironment>([
   "local",
@@ -7,7 +7,12 @@ const supportedAppEnvironments = new Set<AppEnvironment>([
   "production",
 ]);
 
-const supportedSeedProfiles = new Set<SeedProfile>(["local", "preview", "demo"]);
+const supportedSeedProfiles = new Set<SeedProfile>([
+  "local",
+  "preview",
+  "demo",
+  "production",
+]);
 
 export function resolveAppEnvironment(): AppEnvironment {
   const explicit = process.env.APP_ENV?.trim() as AppEnvironment | undefined;
@@ -39,7 +44,7 @@ export function resolveSeedProfile(): SeedProfile {
   const appEnvironment = resolveAppEnvironment();
 
   if (appEnvironment === "production") {
-    return "demo";
+    return "production";
   }
 
   if (appEnvironment === "preview") {
