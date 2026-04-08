@@ -17,7 +17,7 @@
 ```bash
 npm install
 npm run db:local:up
-npm run db:migrate
+npm run db:migrate:dev
 npm run db:seed:local
 npm run dev
 ```

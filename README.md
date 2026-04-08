@@ -2,26 +2,12 @@
 
 一个面向拖延型用户的低阻力启动提醒产品。
 
-当前版本已经从“SQLite 演示快照”升级为“云数据库架构准备版”：
+当前版本已经从 `SQLite + /tmp demo 快照` 升级为 `Postgres + 环境分库` 的部署准备版：
 
-- 运行时改为标准 Postgres 连接
-- Production / Preview / Local 三套环境分离
-- `demo / preview / local / production` 四套 seed profile
-- 保留稳定演示数据集的恢复能力
-
-## 项目简介
-
-“第一步”不做复杂计划管理，只聚焦一件事：让用户更容易开始。
-
-它解决的不是“记不住任务”，而是“明知道该做，却很难启动”。
-
-当前功能包含：
-
-- 一句话快速录入任务
-- 任务列表与轻量编辑
-- 提醒中心与提醒响应
-- 启动接受率、延后率、拒绝率看板
-- Web/PWA 最小可用设备通知与 Web Push
+- `master` 对应 Production 数据源
+- `dev` 对应 Preview 数据源
+- 本地开发使用独立 Local 数据源
+- `production` profile 复用稳定的 `demo` 演示数据集
 
 ## 技术栈
 
@@ -42,28 +28,18 @@
 npm install
 ```
 
-### 2. 准备本地环境变量
+### 2. 准备环境变量
 
-复制 [.env.example](./.env.example) 为 `.env`，默认本地配置已经指向 Docker Postgres：
+复制 [.env.example](./.env.example) 为 `.env`，本地默认配置为：
 
 ```bash
 APP_ENV="local"
 SEED_PROFILE="local"
 DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/first_step_local?schema=public"
 DIRECT_URL="postgresql://postgres:postgres@127.0.0.1:5432/first_step_local?schema=public"
-VAPID_SUBJECT="mailto:you@example.com"
-VAPID_PUBLIC_KEY="<your web push public key>"
-VAPID_PRIVATE_KEY="<your web push private key>"
-NEXT_PUBLIC_VAPID_PUBLIC_KEY="<same as VAPID_PUBLIC_KEY>"
 ```
 
-如果还没有 VAPID 密钥，可以先执行：
-
-```bash
-npm run push:vapid
-```
-
-### 3. 启动本地数据库
+### 3. 启动本地 Postgres
 
 ```bash
 npm run db:local:up
@@ -72,47 +48,110 @@ npm run db:local:up
 ### 4. 初始化数据库
 
 ```bash
-npm run db:migrate
+npm run db:generate
+npm run db:migrate:dev
 npm run db:seed:local
 ```
 
-### 5. 启动开发环境
+### 5. 启动项目
 
 ```bash
 npm run dev
 ```
 
-### 6. 本地访问
+访问地址：
 
-[http://localhost:3000](http://localhost:3000)
+- [http://localhost:3000](http://localhost:3000)
 
-## 数据环境策略
+## 数据库与环境策略
 
-当前推荐的环境拆分如下：
+当前推荐拆分如下：
 
-- Local Development：本地 Postgres，只给开发使用
-- Preview Deployment：独立测试数据库，只给预览和验收使用
-- Production Deployment：稳定演示数据库，只给正式演示使用
+- Local：本地 Postgres，仅供开发调试
+- Preview：Vercel Preview 对应的独立 Postgres
+- Production：Vercel Production 对应的独立 Postgres
 
-这三套环境不共享数据库，避免：
+这三套环境不共用数据库。
 
-- 测试任务污染正式演示数据
-- Preview 写入影响 Production
-- 本地实验数据进入线上
+### 分支与环境映射
 
-详细说明见：
+- `master` -> Production
+- `dev` -> Preview
 
-- [docs/environment-strategy.md](./docs/environment-strategy.md)
-- [docs/data-seeding.md](./docs/data-seeding.md)
+### Production 环境变量
 
-## Seed 数据策略
+`master` 分支部署到 Vercel Production 时，建议配置：
 
-当前支持四套 profile：
+```bash
+APP_ENV="production"
+SEED_PROFILE="production"
+DATABASE_URL="postgresql://USER:PASSWORD@PROD_POOLER_HOST/first_step_prod?sslmode=require&pgbouncer=true&connection_limit=1"
+DIRECT_URL="postgresql://USER:PASSWORD@PROD_DIRECT_HOST/first_step_prod?sslmode=require"
+```
+
+说明：
+
+- `DATABASE_URL` 给应用运行时使用，建议走连接池地址
+- `DIRECT_URL` 给 Prisma 迁移使用，建议走直连地址
+
+### Preview 环境变量
+
+`dev` 分支部署到 Vercel Preview 时，建议配置：
+
+```bash
+APP_ENV="preview"
+SEED_PROFILE="preview"
+DATABASE_URL="postgresql://USER:PASSWORD@PREVIEW_POOLER_HOST/first_step_preview?sslmode=require&pgbouncer=true&connection_limit=1"
+DIRECT_URL="postgresql://USER:PASSWORD@PREVIEW_DIRECT_HOST/first_step_preview?sslmode=require"
+```
+
+## 迁移与 Seed 命令
+
+### 本地开发
+
+```bash
+npm run db:generate
+npm run db:migrate:dev
+npm run db:seed:local
+```
+
+### Preview 环境
+
+```bash
+npm run db:generate
+npm run db:migrate
+npm run db:seed:preview
+```
+
+### Production 环境
+
+```bash
+npm run db:generate
+npm run db:migrate
+npm run db:seed:production
+```
+
+说明：
+
+- `db:migrate` 现在是 `prisma migrate deploy`，用于 Preview / Production
+- `db:migrate:dev` 保留给本地开发
+- `production` profile 会复用 `demo` 数据集，但保留独立 profile 名称，便于平台配置和文档表达
+
+## Seed Profile
+
+当前支持四种 profile：
 
 - `local`
 - `preview`
 - `demo`
 - `production`
+
+区别：
+
+- `local`：本地开发和调试
+- `preview`：预览环境测试数据
+- `demo`：稳定演示数据集
+- `production`：生产环境初始化使用，底层复用 `demo`
 
 常用命令：
 
@@ -123,12 +162,26 @@ npm run db:seed:demo
 npm run db:seed:production
 ```
 
-其中：
+## 设备通知
 
-- `demo` 用于稳定演示数据集
-- `preview` 用于预览环境测试数据
-- `local` 用于本地开发
-- `production` 用于生产环境初始化，底层复用 `demo` 数据集，但保留独立 profile 名称，避免生产环境继续写成 `demo`
+当前版本已经接入 Web/PWA 方向的最小可用设备通知：
+
+- 通知权限申请
+- Service Worker 通知展示
+- Push Subscription 入库
+- 服务端 Web Push 发送
+- 到点提醒推送后仍保留站内提醒记录
+
+iPhone 上要生效，需要：
+
+1. 使用 Safari 打开站点
+2. 添加到主屏幕
+3. 从主屏幕重新打开
+4. 再开启设备通知权限
+
+当前仍做不到原生闹钟级稳定提醒，详见：
+
+- [docs/notification-options.md](./docs/notification-options.md)
 
 ## 部署与预览
 
@@ -136,79 +189,13 @@ npm run db:seed:production
 
 - [docs/deployment-guide.md](./docs/deployment-guide.md)
 
-重点环境变量：
+环境与数据策略见：
 
-### Production
-
-```bash
-APP_ENV="production"
-SEED_PROFILE="production"
-DATABASE_URL="<production pooled postgres url>"
-DIRECT_URL="<production direct postgres url>"
-VAPID_SUBJECT="mailto:you@example.com"
-VAPID_PUBLIC_KEY="<production web push public key>"
-VAPID_PRIVATE_KEY="<production web push private key>"
-NEXT_PUBLIC_VAPID_PUBLIC_KEY="<same as VAPID_PUBLIC_KEY>"
-```
-
-### Preview
-
-```bash
-APP_ENV="preview"
-SEED_PROFILE="preview"
-DATABASE_URL="<preview pooled postgres url>"
-DIRECT_URL="<preview direct postgres url>"
-VAPID_SUBJECT="mailto:you@example.com"
-VAPID_PUBLIC_KEY="<preview web push public key>"
-VAPID_PRIVATE_KEY="<preview web push private key>"
-NEXT_PUBLIC_VAPID_PUBLIC_KEY="<same as VAPID_PUBLIC_KEY>"
-```
-
-## Web/PWA 设备通知
-
-当前版本已经接入：
-
-- 通知权限申请与状态检测
-- Service Worker 通知展示
-- Push Subscription 入库
-- 服务端 Web Push 发送
-- 到点提醒推送后仍保留站内提醒记录
-- iPhone / Safari / PWA 使用前提提示
-
-当前验证方式：
-
-1. 开启设备提醒
-2. 点击“发送测试提醒”
-3. 再点击“同步到点提醒”验证真实到点推送链路
-
-### iPhone 使用前提
-
-- 需要 iOS / iPadOS 16.4 及以上
-- 需要先用 Safari 打开站点
-- 需要“添加到主屏幕”
-- 需要从主屏幕启动这个 Web App 后，再开启通知权限
-
-### 当前做不到的事
-
-- 不能像原生闹钟那样保证每一次都准点响铃
-- Preview 和本地环境不会天然拥有稳定的后台定时调度
-- 仍然受浏览器、电量策略、系统通知策略影响
-
-### 自动到点推送的当前策略
-
-- 线上通过 [vercel.json](./vercel.json) 的 cron 调度 `/api/push/dispatch-due`
-- 本地开发时，可以用页面里的“同步到点提醒”手动验证
-- 站内提醒中心仍然保留，保证事件和统计口径一致
-
-如果你要继续升级通知能力，先看：
-
-- [docs/notification-options.md](./docs/notification-options.md)
+- [docs/environment-strategy.md](./docs/environment-strategy.md)
+- [docs/data-seeding.md](./docs/data-seeding.md)
 
 ## 当前限制
 
-- 云数据库连接串需要你在本地和平台手动配置
-- Preview 与 Production 的数据库隔离需要在 Vercel 环境变量里完成
-- Web Push 已接入，但仍不是原生稳定铃声提醒
-- iPhone 需要主屏幕 PWA 形态才能启用 Web Push
-- Preview / Local 默认更适合验证测试推送和手动同步，稳定自动调度以 Production 为主
-- 不含登录注册、多人协作、原生 App、复杂 AI 排程
+- 生产和预览数据库需要你在平台手动配置
+- Web Push 已接入，但仍不等于原生移动端通知
+- `master` / `dev` 的环境隔离依赖 Vercel 中正确配置 `DATABASE_URL` 和 `DIRECT_URL`
