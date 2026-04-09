@@ -2,12 +2,12 @@
 
 一个面向拖延型用户的低阻力启动提醒产品。
 
-当前版本已经从 `SQLite + /tmp demo 快照` 升级为 `Postgres + 环境分库` 的部署准备版：
+当前版本已经从早期的 SQLite 演示方案升级到 Postgres 多环境方案，支持：
 
-- `master` 对应 Production 数据源
-- `dev` 对应 Preview 数据源
-- 本地开发使用独立 Local 数据源
-- `production` profile 复用稳定的 `demo` 演示数据集
+- `local`：本机或 Docker Postgres
+- `dev`：本地开发直连远程 Neon dev 库
+- `preview`：Vercel Preview 独立测试库
+- `production`：Vercel Production 稳定演示库
 
 ## 技术栈
 
@@ -18,19 +18,36 @@
 - PostgreSQL
 - Zustand
 - date-fns
-- Vercel
+- Web Push / PWA
+
+## 环境和数据库
+
+### 环境矩阵
+
+| 环境 | 用途 | 数据库 | Seed Profile | 迁移命令 |
+| --- | --- | --- | --- | --- |
+| `local` | 本机开发、离线调试 | Local Postgres | `local` | `npm run db:migrate:dev` |
+| `dev` | 本地开发、智能推荐联调 | 远程 Neon dev 库 | `dev` | `npm run db:migrate:dev` |
+| `preview` | Vercel Preview | Preview Postgres | `preview` | `npm run db:migrate` |
+| `production` | Vercel Production | Production Postgres | `production` | `npm run db:migrate` |
+
+### 分支与环境映射
+
+- `master` -> `production`
+- `dev` -> `preview`
+- `APP_ENV=dev` 只用于本地开发时连接远程 dev 库，不直接对应 Vercel 分支
 
 ## 本地运行
 
-### 1. 安装依赖
+### 方案 A：本地 local 库
+
+1. 安装依赖
 
 ```bash
 npm install
 ```
 
-### 2. 准备环境变量
-
-复制 [.env.example](./.env.example) 为 `.env`，本地默认配置为：
+2. 使用 `.env.example` 中的 local 配置
 
 ```bash
 APP_ENV="local"
@@ -39,13 +56,13 @@ DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/first_step_local?sch
 DIRECT_URL="postgresql://postgres:postgres@127.0.0.1:5432/first_step_local?schema=public"
 ```
 
-### 3. 启动本地 Postgres
+3. 启动本地 Postgres
 
 ```bash
 npm run db:local:up
 ```
 
-### 4. 初始化数据库
+4. 初始化数据库
 
 ```bash
 npm run db:generate
@@ -53,7 +70,7 @@ npm run db:migrate:dev
 npm run db:seed:local
 ```
 
-### 5. 启动项目
+5. 启动项目
 
 ```bash
 npm run dev
@@ -63,40 +80,38 @@ npm run dev
 
 - [http://localhost:3000](http://localhost:3000)
 
-## 数据库与环境策略
+### 方案 B：本地直连远程 Neon dev 库
 
-当前推荐拆分如下：
-
-- Local：本地 Postgres，仅供开发调试
-- Preview：Vercel Preview 对应的独立 Postgres
-- Production：Vercel Production 对应的独立 Postgres
-
-这三套环境不共用数据库。
-
-### 分支与环境映射
-
-- `master` -> Production
-- `dev` -> Preview
-
-### Production 环境变量
-
-`master` 分支部署到 Vercel Production 时，建议配置：
+把 `.env` 改成：
 
 ```bash
-APP_ENV="production"
-SEED_PROFILE="production"
-DATABASE_URL="postgresql://USER:PASSWORD@PROD_POOLER_HOST/first_step_prod?sslmode=require&pgbouncer=true&connection_limit=1"
-DIRECT_URL="postgresql://USER:PASSWORD@PROD_DIRECT_HOST/first_step_prod?sslmode=require"
+APP_ENV="dev"
+SEED_PROFILE="dev"
+DATABASE_URL="postgresql://USER:PASSWORD@DEV_POOLER_HOST/first_step_dev?sslmode=require&pgbouncer=true&connection_limit=1"
+DIRECT_URL="postgresql://USER:PASSWORD@DEV_DIRECT_HOST/first_step_dev?sslmode=require"
 ```
 
-说明：
+如果要调智能推荐，再补：
 
-- `DATABASE_URL` 给应用运行时使用，建议走连接池地址
-- `DIRECT_URL` 给 Prisma 迁移使用，建议走直连地址
+```bash
+OPENAI_API_KEY="你的 OpenAI Key"
+OPENAI_FIRST_STEP_MODEL="gpt-4o-mini"
+```
 
-### Preview 环境变量
+然后执行：
 
-`dev` 分支部署到 Vercel Preview 时，建议配置：
+```bash
+npm run db:generate
+npm run db:migrate:dev
+npm run db:seed:dev
+npm run dev
+```
+
+## Preview 与 Production
+
+### Preview
+
+Vercel Preview 环境建议配置：
 
 ```bash
 APP_ENV="preview"
@@ -105,17 +120,7 @@ DATABASE_URL="postgresql://USER:PASSWORD@PREVIEW_POOLER_HOST/first_step_preview?
 DIRECT_URL="postgresql://USER:PASSWORD@PREVIEW_DIRECT_HOST/first_step_preview?sslmode=require"
 ```
 
-## 迁移与 Seed 命令
-
-### 本地开发
-
-```bash
-npm run db:generate
-npm run db:migrate:dev
-npm run db:seed:local
-```
-
-### Preview 环境
+初始化命令：
 
 ```bash
 npm run db:generate
@@ -123,7 +128,18 @@ npm run db:migrate
 npm run db:seed:preview
 ```
 
-### Production 环境
+### Production
+
+Vercel Production 环境建议配置：
+
+```bash
+APP_ENV="production"
+SEED_PROFILE="production"
+DATABASE_URL="postgresql://USER:PASSWORD@PROD_POOLER_HOST/first_step_prod?sslmode=require&pgbouncer=true&connection_limit=1"
+DIRECT_URL="postgresql://USER:PASSWORD@PROD_DIRECT_HOST/first_step_prod?sslmode=require"
+```
+
+初始化命令：
 
 ```bash
 npm run db:generate
@@ -133,76 +149,83 @@ npm run db:seed:production
 
 说明：
 
-- `db:migrate` 现在是 `prisma migrate deploy`，用于 Preview / Production
-- `db:migrate:dev` 保留给本地开发
-- `production` profile 会复用 `demo` 数据集，但保留独立 profile 名称，便于平台配置和文档表达
+- `production` profile 复用稳定的 `demo` 数据集
+- `preview` 使用独立测试数据
+- `dev` 使用独立开发调试数据
 
 ## Seed Profile
 
-当前支持四种 profile：
+当前支持：
 
 - `local`
+- `dev`
 - `preview`
 - `demo`
 - `production`
 
 区别：
 
-- `local`：本地开发和调试
+- `local`：本地最轻量的开发数据
+- `dev`：本地连远程 Neon dev 库时的调试数据，适合提醒和智能推荐联调
 - `preview`：预览环境测试数据
 - `demo`：稳定演示数据集
-- `production`：生产环境初始化使用，底层复用 `demo`
+- `production`：生产环境初始化用，底层复用 `demo`
 
 常用命令：
 
 ```bash
 npm run db:seed:local
+npm run db:seed:dev
 npm run db:seed:preview
 npm run db:seed:demo
 npm run db:seed:production
 ```
 
+## 迁移脚本
+
+- 本地开发和 `dev` 远程开发库：
+
+```bash
+npm run db:migrate:dev
+```
+
+- Preview 和 Production：
+
+```bash
+npm run db:migrate
+```
+
+说明：
+
+- `db:migrate:dev` = `prisma migrate dev`
+- `db:migrate` = `prisma migrate deploy`
+
 ## 设备通知
 
-当前版本已经接入 Web/PWA 方向的最小可用设备通知：
+当前已经支持 Web/PWA 版本的最小可用设备通知：
 
 - 通知权限申请
-- Service Worker 通知展示
+- Service Worker 展示通知
 - Push Subscription 入库
 - 服务端 Web Push 发送
-- 到点提醒推送后仍保留站内提醒记录
 
 iPhone 上要生效，需要：
 
-1. 使用 Safari 打开站点
+1. 用 Safari 打开站点
 2. 添加到主屏幕
 3. 从主屏幕重新打开
-4. 再开启设备通知权限
+4. 再授权通知
 
-当前仍做不到原生闹钟级稳定提醒。并且为了避免 `dev` 分支的 Preview Deployment 被 Vercel cron 配置拦截，仓库里不再提交自动调度配置。
+当前还不是原生闹钟级提醒。Preview 和本地环境建议继续用页面里的“同步到点提醒”手动验证。
 
-现在的策略是：
+## 旧 SQLite 说明
 
-- Local / Preview：用页面里的“同步到点提醒”手动验证
-- Production：如需自动到点推送，在 Vercel 项目侧单独配置定时请求或外部调度器，不放在仓库里
+旧的 SQLite `/tmp` 运行时逻辑已经迁走。当前正式代码路径只使用 Postgres。
 
-更多边界说明见：
+仓库里仍然可能保留少量“为什么不再使用 SQLite”的历史说明，但不再参与运行。
 
-- [docs/notification-options.md](./docs/notification-options.md)
-
-## 部署与预览
-
-部署说明见：
+## 更多说明
 
 - [docs/deployment-guide.md](./docs/deployment-guide.md)
-
-环境与数据策略见：
-
 - [docs/environment-strategy.md](./docs/environment-strategy.md)
 - [docs/data-seeding.md](./docs/data-seeding.md)
-
-## 当前限制
-
-- 生产和预览数据库需要你在平台手动配置
-- Web Push 已接入，但仍不等于原生移动端通知
-- `master` / `dev` 的环境隔离依赖 Vercel 中正确配置 `DATABASE_URL` 和 `DIRECT_URL`

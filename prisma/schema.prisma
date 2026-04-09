@@ -39,19 +39,33 @@ enum ReminderResponseType {
   not_today
 }
 
+enum FirstStepRecommendationSource {
+  llm
+  rule_fallback
+}
+
+enum FirstStepRecommendationEventType {
+  generated
+  shown
+  accepted
+  regenerated
+}
+
 model Task {
-  id             String          @id @default(cuid())
-  content        String
-  parsedAction   String
-  dueAt          DateTime?
-  contextType    ContextType     @default(unknown)
-  reminderStyle  ReminderStyle   @default(minimal_action)
-  status         TaskStatus      @default(active)
-  nextReminderAt DateTime?
-  archivedAt     DateTime?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  reminderEvents ReminderEvent[]
+  id                            String                         @id @default(cuid())
+  content                       String
+  parsedAction                  String
+  dueAt                         DateTime?
+  contextType                   ContextType                    @default(unknown)
+  reminderStyle                 ReminderStyle                  @default(minimal_action)
+  status                        TaskStatus                     @default(active)
+  nextReminderAt                DateTime?
+  archivedAt                    DateTime?
+  createdAt                     DateTime                       @default(now())
+  updatedAt                     DateTime                       @updatedAt
+  reminderEvents                ReminderEvent[]
+  firstStepRecommendations      FirstStepRecommendation[]
+  firstStepRecommendationEvents FirstStepRecommendationEvent[]
 
   @@index([status, nextReminderAt])
   @@index([dueAt])
@@ -85,4 +99,45 @@ model DevicePushSubscription {
   updatedAt  DateTime @updatedAt
 
   @@index([isActive, updatedAt])
+}
+
+model FirstStepRecommendation {
+  id                     String                        @id @default(cuid())
+  taskId                 String
+  scheduledFor           DateTime
+  reminderStage          String
+  preferredTone          String
+  delayCount             Int                           @default(0)
+  source                 FirstStepRecommendationSource
+  modelName              String?
+  canDoNow               Boolean
+  frictionSource         String
+  decompositionType      String
+  recommendedFirstStep   String
+  whyThisStep            String
+  isSmallerThanOriginal  Boolean
+  confidence             Float
+  requestPayload         Json?
+  rawResponse            Json?
+  generationError        String?
+  createdAt              DateTime                      @default(now())
+  task                   Task                          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  recommendationEvents   FirstStepRecommendationEvent[]
+
+  @@index([taskId, scheduledFor, createdAt])
+  @@index([source, createdAt])
+}
+
+model FirstStepRecommendationEvent {
+  id               String                           @id @default(cuid())
+  recommendationId String
+  taskId           String
+  eventType        FirstStepRecommendationEventType
+  metadata         Json?
+  createdAt        DateTime                         @default(now())
+  recommendation   FirstStepRecommendation          @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  task             Task                             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([recommendationId, eventType, createdAt])
+  @@index([taskId, eventType, createdAt])
 }

@@ -6,10 +6,12 @@ import {
   CheckCircle2,
   Clock3,
   MoonStar,
+  Sparkles,
 } from "lucide-react";
 
 import {
   markRemindersAsSentAction,
+  regenerateReminderFirstStepAction,
   respondToReminderAction,
 } from "@/app/actions/reminder-actions";
 import { FormSubmitButton } from "@/components/form-submit-button";
@@ -20,6 +22,26 @@ import { useUiStore } from "@/stores/ui-store";
 type ReminderCenterProps = {
   reminders: DueReminderItem[];
   highlightedTaskId?: string | null;
+};
+
+const frictionLabelMap: Record<string, string> = {
+  task_too_large: "任务过大",
+  current_scene_unsuitable: "当前场景不适合",
+  current_time_unsuitable: "当前时间不适合",
+  missing_material: "缺少材料",
+  missing_information: "缺少信息",
+  entry_not_open: "入口未打开",
+  psychological_barrier: "心理门槛高",
+  repeated_delay: "已多次延后",
+};
+
+const decompositionLabelMap: Record<string, string> = {
+  open_entry: "打开入口动作",
+  prepare_material: "准备材料动作",
+  confirm_information: "信息确认动作",
+  minimum_execute: "最小执行动作",
+  lower_psychological_barrier: "降低心理门槛动作",
+  alternative_scene: "场景替代动作",
 };
 
 export function ReminderCenter({
@@ -37,6 +59,7 @@ export function ReminderCenter({
         taskId: reminder.taskId,
         messageShown: reminder.messageShown,
         scheduledForIso: reminder.scheduledForIso,
+        recommendationId: reminder.recommendationId,
       })),
     [reminders],
   );
@@ -94,7 +117,7 @@ export function ReminderCenter({
         </div>
 
         <div className="rounded-[28px] border border-dashed border-zinc-300 bg-white/75 p-6 text-sm leading-7 text-zinc-500">
-          当前没有需要立刻提醒的任务。你可以去任务页手动触发提醒，或者等下一个候选提醒时间到达。
+          当前没有到点提醒。你可以先去任务页手动触发，或者等下一次提醒时间到。
         </div>
       </div>
     );
@@ -164,24 +187,79 @@ export function ReminderCenter({
               {reminder.messageShown}
             </div>
 
-            <dl className="grid grid-cols-2 gap-3 rounded-[22px] bg-zinc-50/80 p-4 text-sm">
-              <div>
-                <dt className="text-zinc-500">建议先做</dt>
-                <dd className="mt-1 font-medium text-zinc-900">{reminder.parsedAction}</dd>
+            <section className="rounded-[22px] bg-zinc-50/80 p-4 text-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-zinc-500">推荐的第一步</div>
+                  <div className="mt-1 text-base font-semibold text-zinc-900">
+                    {reminder.recommendedFirstStep}
+                  </div>
+                </div>
+
+                <form action={regenerateReminderFirstStepAction}>
+                  <input type="hidden" name="taskId" value={reminder.taskId} />
+                  <input
+                    type="hidden"
+                    name="scheduledForIso"
+                    value={reminder.scheduledForIso}
+                  />
+                  <input
+                    type="hidden"
+                    name="recommendationId"
+                    value={reminder.recommendationId}
+                  />
+                  <FormSubmitButton
+                    pendingText="重算中..."
+                    className="shrink-0 border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600 hover:border-emerald-200 hover:bg-emerald-50"
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      换一个
+                    </span>
+                  </FormSubmitButton>
+                </form>
               </div>
-              <div>
-                <dt className="text-zinc-500">提醒风格</dt>
-                <dd className="mt-1 font-medium text-zinc-900">
+
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                <span className="rounded-full bg-white px-2.5 py-1">
+                  {reminder.canDoNow ? "现在可以先做" : "先做前置动作"}
+                </span>
+                <span className="rounded-full bg-white px-2.5 py-1">
+                  阻力{" "}
+                  {frictionLabelMap[reminder.frictionSource] ??
+                    reminder.frictionSource}
+                </span>
+                <span className="rounded-full bg-white px-2.5 py-1">
+                  拆解{" "}
+                  {decompositionLabelMap[reminder.decompositionType] ??
+                    reminder.decompositionType}
+                </span>
+                <span className="rounded-full bg-white px-2.5 py-1">
                   {reminder.reminderStyleLabel}
-                </dd>
+                </span>
               </div>
-              <div className="col-span-2">
-                <dt className="text-zinc-500">截止时间</dt>
-                <dd className="mt-1 font-medium text-zinc-900">
-                  {reminder.dueAtLabel ?? "未设置"}
-                </dd>
+
+              <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <dt className="text-zinc-500">为什么先做这一步</dt>
+                  <dd className="mt-1 font-medium text-zinc-900">
+                    {reminder.recommendationWhy}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-zinc-500">截止时间</dt>
+                  <dd className="mt-1 font-medium text-zinc-900">
+                    {reminder.dueAtLabel ?? "未设置"}
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="mt-3 text-xs text-zinc-500">
+                {reminder.isSmallerThanOriginal
+                  ? "这一步已经比原任务更小，更适合先开始。"
+                  : "当前推荐还不够小。"}
               </div>
-            </dl>
+            </section>
 
             <div className="grid gap-3">
               <form action={respondToReminderAction}>
@@ -192,6 +270,11 @@ export function ReminderCenter({
                   type="hidden"
                   name="scheduledForIso"
                   value={reminder.scheduledForIso}
+                />
+                <input
+                  type="hidden"
+                  name="recommendationId"
+                  value={reminder.recommendationId}
                 />
                 <FormSubmitButton
                   pendingText="记录中..."
@@ -213,13 +296,18 @@ export function ReminderCenter({
                 <input type="hidden" name="messageShown" value={reminder.messageShown} />
                 <input
                   type="hidden"
+                  name="scheduledForIso"
+                  value={reminder.scheduledForIso}
+                />
+                <input
+                  type="hidden"
                   name="delayMinutes"
                   value={String(reminderDelayMinutes)}
                 />
                 <input
                   type="hidden"
-                  name="scheduledForIso"
-                  value={reminder.scheduledForIso}
+                  name="recommendationId"
+                  value={reminder.recommendationId}
                 />
                 <label
                   htmlFor={`delay-${reminder.taskId}`}
@@ -236,7 +324,7 @@ export function ReminderCenter({
                       当前设为 {reminderDelayMinutes} 分钟后
                     </div>
                     <div className="mt-1 text-xs text-zinc-500">
-                      你可以在列表顶部把这个值改成 24 小时内的任意分钟数。
+                      你可以在页头把这个值改成 24 小时内的任意分钟数。
                     </div>
                   </div>
                   <FormSubmitButton
@@ -259,6 +347,11 @@ export function ReminderCenter({
                   type="hidden"
                   name="scheduledForIso"
                   value={reminder.scheduledForIso}
+                />
+                <input
+                  type="hidden"
+                  name="recommendationId"
+                  value={reminder.recommendationId}
                 />
                 <FormSubmitButton
                   pendingText="记录中..."

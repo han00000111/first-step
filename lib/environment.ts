@@ -1,14 +1,16 @@
-export type AppEnvironment = "local" | "preview" | "production";
-export type SeedProfile = "local" | "preview" | "demo" | "production";
+export type AppEnvironment = "local" | "dev" | "preview" | "production";
+export type SeedProfile = "local" | "dev" | "preview" | "demo" | "production";
 
 const supportedAppEnvironments = new Set<AppEnvironment>([
   "local",
+  "dev",
   "preview",
   "production",
 ]);
 
 const supportedSeedProfiles = new Set<SeedProfile>([
   "local",
+  "dev",
   "preview",
   "demo",
   "production",
@@ -49,6 +51,10 @@ export function resolveSeedProfile(): SeedProfile {
 
   if (appEnvironment === "preview") {
     return "preview";
+  }
+
+  if (appEnvironment === "dev") {
+    return "dev";
   }
 
   return "local";

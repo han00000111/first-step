@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "FirstStepRecommendationEvent_recommendationId_eventType_created" RENAME TO "FirstStepRecommendationEvent_recommendationId_eventType_cre_idx";

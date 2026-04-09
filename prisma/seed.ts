@@ -27,6 +27,8 @@ type SeedEventInput = {
   delayMinutes?: number | null;
 };
 
+type DatasetProfile = "local" | "dev" | "preview" | "demo";
+
 function resolveProfileFromArgs() {
   const profileIndex = process.argv.findIndex((arg) => arg === "--profile");
 
@@ -37,75 +39,127 @@ function resolveProfileFromArgs() {
       nextValue === "demo" ||
       nextValue === "preview" ||
       nextValue === "local" ||
-      nextValue === "production"
+      nextValue === "production" ||
+      nextValue === "dev"
     ) {
       return nextValue satisfies SeedProfile;
     }
 
-    throw new Error("Invalid --profile value. Use demo, preview, local or production.");
+    throw new Error(
+      "Invalid --profile value. Use demo, dev, preview, local or production.",
+    );
   }
 
   return resolveSeedProfile();
 }
 
+function resolveDatasetProfile(profile: SeedProfile): DatasetProfile {
+  if (profile === "production") {
+    return "demo";
+  }
+
+  return profile;
+}
+
+function getDatasetPrefix(datasetProfile: DatasetProfile) {
+  if (datasetProfile === "demo") {
+    return "";
+  }
+
+  if (datasetProfile === "preview") {
+    return "Preview 路 ";
+  }
+
+  if (datasetProfile === "dev") {
+    return "Dev 路 ";
+  }
+
+  return "Local 路 ";
+}
+
 function buildScenario(profile: SeedProfile, now: Date) {
-  const datasetProfile = profile === "production" ? "demo" : profile;
+  const datasetProfile = resolveDatasetProfile(profile);
+  const prefix = getDatasetPrefix(datasetProfile);
   const tomorrowMorning = setMinutes(setHours(addDays(now, 1), 9), 0);
-  const prefix =
-    datasetProfile === "demo"
-      ? ""
-      : datasetProfile === "preview"
-        ? "Preview · "
-        : "Local · ";
+  const dueSoonOffset =
+    datasetProfile === "dev" ? 4 : datasetProfile === "preview" ? 6 : 18;
 
   const resumeTask: SeedTaskInput = {
     key: "resume",
-    content: `${prefix}今晚改简历第一段`,
-    parsedAction: "先打开简历文件",
-    dueAt: addHours(now, 18),
+    content:
+      datasetProfile === "dev"
+        ? `${prefix}今晚把简历开头改成更适合产品岗位的版本`
+        : `${prefix}今晚改简历第一段`,
+    parsedAction:
+      datasetProfile === "dev" ? "先打开简历并只改标题下第一段" : "先打开简历文件",
+    dueAt: addHours(now, dueSoonOffset),
     contextType: "pc",
     reminderStyle: "minimal_action",
-    nextReminderAt: datasetProfile === "preview" ? subMinutes(now, 2) : null,
+    nextReminderAt:
+      datasetProfile === "dev"
+        ? subMinutes(now, 3)
+        : datasetProfile === "preview"
+          ? subMinutes(now, 2)
+          : null,
   };
 
   const hrReplyTask: SeedTaskInput = {
     key: "hr-reply",
-    content: `${prefix}明天下午给 HR 回消息`,
-    parsedAction: "先回一句消息",
+    content:
+      datasetProfile === "dev"
+        ? `${prefix}明天上午前给 HR 回一封确认面试时间的邮件`
+        : `${prefix}明天下午给 HR 回消息`,
+    parsedAction:
+      datasetProfile === "dev" ? "先写一句确认时间的回复" : "先回一句消息",
     dueAt: addDays(now, 1),
     contextType: "mobile",
     reminderStyle: "gentle",
-    nextReminderAt: addMinutes(now, datasetProfile === "local" ? 20 : 10),
+    nextReminderAt:
+      datasetProfile === "dev" ? subMinutes(now, 1) : addMinutes(now, 10),
   };
 
   const jobApplyTask: SeedTaskInput = {
     key: "job-apply",
-    content: `${prefix}周四前投 3 个岗位`,
-    parsedAction: "先看一个岗位 JD",
-    dueAt: addHours(now, 6),
+    content:
+      datasetProfile === "dev"
+        ? `${prefix}周四前投 3 个岗位，并把每个岗位的简历标题都调一下`
+        : `${prefix}周四前投 3 个岗位`,
+    parsedAction:
+      datasetProfile === "dev" ? "先打开第一个岗位的 JD" : "先看一个岗位 JD",
+    dueAt: addHours(now, datasetProfile === "dev" ? 5 : 6),
     contextType: "pc",
     reminderStyle: "ddl_push",
-    nextReminderAt: datasetProfile === "preview" ? addMinutes(now, 30) : tomorrowMorning,
+    nextReminderAt:
+      datasetProfile === "preview" ? addMinutes(now, 30) : tomorrowMorning,
   };
 
   const studyTask: SeedTaskInput = {
     key: "study",
-    content: `${prefix}学习 30 分钟算法题`,
-    parsedAction: "先看 10 分钟资料",
+    content:
+      datasetProfile === "dev"
+        ? `${prefix}把机器学习笔记整理成 3 个明天能复习的小节`
+        : `${prefix}学习 30 分钟算法题`,
+    parsedAction:
+      datasetProfile === "dev" ? "先列出 3 个小节标题" : "先看 10 分钟资料",
     dueAt: null,
     contextType: "pc",
     reminderStyle: "minimal_action",
-    nextReminderAt: subMinutes(now, 5),
+    nextReminderAt: subMinutes(now, datasetProfile === "dev" ? 8 : 5),
   };
 
   const offlineTask: SeedTaskInput = {
     key: "offline",
-    content: `${prefix}出门前打印材料`,
-    parsedAction: "先把文件发到打印机",
+    content:
+      datasetProfile === "dev"
+        ? `${prefix}明早出门前把面试材料和充电器都放进包里`
+        : `${prefix}出门前打印材料`,
+    parsedAction:
+      datasetProfile === "dev" ? "先把材料放进包里" : "先把文件发到打印店",
     dueAt: addHours(now, 30),
     contextType: "offline",
     reminderStyle: "gentle",
-    nextReminderAt: addHours(now, 2),
+    nextReminderAt:
+      datasetProfile === "dev" ? subMinutes(now, 12) : addHours(now, 2),
   };
 
   const archivedTask: SeedTaskInput = {
@@ -123,9 +177,18 @@ function buildScenario(profile: SeedProfile, now: Date) {
   const resumeSlot = subMinutes(now, 90);
   const hrReplySlot = subMinutes(now, 35);
   const jobApplySlot = subMinutes(now, 20);
+  const studySlot = subMinutes(now, 15);
+  const offlineSlot = subMinutes(now, 12);
   const archivedSlot = subMinutes(now, 200);
 
-  const tasks = [resumeTask, hrReplyTask, jobApplyTask, studyTask, offlineTask, archivedTask];
+  const tasks = [
+    resumeTask,
+    hrReplyTask,
+    jobApplyTask,
+    studyTask,
+    offlineTask,
+    archivedTask,
+  ];
 
   const events: SeedEventInput[] = [
     {
@@ -157,7 +220,7 @@ function buildScenario(profile: SeedProfile, now: Date) {
       messageShown: "先回一句消息也可以",
       scheduledFor: hrReplySlot,
       happenedAt: addMinutes(hrReplySlot, 1),
-      delayMinutes: datasetProfile === "preview" ? 25 : 10,
+      delayMinutes: datasetProfile === "preview" ? 25 : datasetProfile === "dev" ? 40 : 10,
     },
     {
       taskKey: "job-apply",
@@ -191,7 +254,44 @@ function buildScenario(profile: SeedProfile, now: Date) {
     },
   ];
 
-  return { tasks, events };
+  if (datasetProfile === "dev") {
+    events.push(
+      {
+        taskKey: "study",
+        eventType: "reminder_sent",
+        messageShown: "先只做第一步",
+        scheduledFor: studySlot,
+        happenedAt: studySlot,
+      },
+      {
+        taskKey: "study",
+        eventType: "delay",
+        responseType: "remind_later",
+        messageShown: "先只做第一步",
+        scheduledFor: studySlot,
+        happenedAt: addMinutes(studySlot, 1),
+        delayMinutes: 30,
+      },
+      {
+        taskKey: "study",
+        eventType: "delay",
+        responseType: "remind_later",
+        messageShown: "先只做第一步",
+        scheduledFor: addMinutes(studySlot, 30),
+        happenedAt: addMinutes(studySlot, 31),
+        delayMinutes: 45,
+      },
+      {
+        taskKey: "offline",
+        eventType: "reminder_sent",
+        messageShown: "现在不一定做完，先碰一下也行",
+        scheduledFor: offlineSlot,
+        happenedAt: offlineSlot,
+      },
+    );
+  }
+
+  return { tasks, events, datasetProfile };
 }
 
 async function main() {
@@ -199,6 +299,8 @@ async function main() {
   const now = new Date();
   const scenario = buildScenario(profile, now);
 
+  await prisma.firstStepRecommendationEvent.deleteMany();
+  await prisma.firstStepRecommendation.deleteMany();
   await prisma.devicePushSubscription.deleteMany();
   await prisma.reminderEvent.deleteMany();
   await prisma.task.deleteMany();
@@ -237,10 +339,10 @@ async function main() {
   console.log(
     [
       `Seed complete for profile: ${profile}`,
-      `Dataset used: ${profile === "production" ? "demo" : profile}`,
+      `Dataset used: ${scenario.datasetProfile}`,
       `Tasks: ${scenario.tasks.length}`,
       `Reminder events: ${scenario.events.length}`,
-      "Includes: 求职、学习、电脑、线下、不同提醒风格、接受/延后/拒绝样本",
+      "Includes: 求职、学习、电脑、线下、不同提醒风格，以及接受 / 延后 / 拒绝样本。",
     ].join("\n"),
   );
 }

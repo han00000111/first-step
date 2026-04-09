@@ -3,6 +3,13 @@ import { zhCN } from "date-fns/locale";
 import { Prisma } from "@prisma/client";
 
 import {
+  buildFallbackFirstStepRecommendationView,
+  getOrCreateFirstStepRecommendation,
+  markFirstStepRecommendationAccepted,
+  markFirstStepRecommendationsShown,
+  regenerateFirstStepRecommendation,
+} from "@/lib/first-step-recommender";
+import {
   computeDelayedReminderAt,
   computeNextReminderAfterNotToday,
 } from "@/lib/reminder-engine";
@@ -11,6 +18,7 @@ import { prisma } from "@/lib/prisma";
 import {
   getContextLabel,
   getReminderStyleLabel,
+  type ContextTypeValue,
   type ReminderStyleValue,
 } from "@/lib/task-options";
 
@@ -18,53 +26,51 @@ type ReminderPayload = {
   taskId: string;
   messageShown: string;
   scheduledForIso: string;
+  recommendationId?: string;
 };
 
 type ReminderResponseValue = "now_start" | "remind_later" | "not_today";
 
+type ReminderHistoryEvent = {
+  eventType: "accept" | "delay" | "reject";
+  responseType: "now_start" | "remind_later" | "not_today" | null;
+  happenedAt: Date;
+  delayMinutes: number | null;
+};
+
+type DueTaskRecord = {
+  id: string;
+  content: string;
+  parsedAction: string;
+  contextType: ContextTypeValue;
+  reminderStyle: ReminderStyleValue;
+  dueAt: Date | null;
+  nextReminderAt: Date | null;
+  reminderEvents: ReminderHistoryEvent[];
+};
+
 export type DueReminderItem = {
   taskId: string;
   content: string;
-  parsedAction: string;
   contextLabel: string;
   reminderStyleLabel: string;
   messageShown: string;
   dueAtLabel: string | null;
   scheduledForIso: string;
   scheduledForLabel: string;
+  recommendationId: string;
+  canDoNow: boolean;
+  frictionSource: string;
+  decompositionType: string;
+  recommendedFirstStep: string;
+  recommendationWhy: string;
+  isSmallerThanOriginal: boolean;
+  recommendationConfidence: number;
+  recommendationSource: "llm" | "rule_fallback";
 };
 
-function buildDueReminderItem(task: {
-  id: string;
-  content: string;
-  parsedAction: string;
-  contextType: string;
-  reminderStyle: string;
-  dueAt: Date | null;
-  nextReminderAt: Date | null;
-}) {
-  const reminderStyle = task.reminderStyle as ReminderStyleValue;
-
-  return {
-    taskId: task.id,
-    content: task.content,
-    parsedAction: task.parsedAction,
-    contextLabel: getContextLabel(task.contextType as never),
-    reminderStyleLabel: getReminderStyleLabel(task.reminderStyle as never),
-    messageShown: buildReminderMessage({
-      content: task.content,
-      parsedAction: task.parsedAction,
-      reminderStyle,
-      dueAt: task.dueAt,
-    }),
-    dueAtLabel: task.dueAt ? formatReminderTime(task.dueAt) : null,
-    scheduledForIso: task.nextReminderAt!.toISOString(),
-    scheduledForLabel: formatReminderTime(task.nextReminderAt!),
-  } satisfies DueReminderItem;
-}
-
 function formatReminderTime(value: Date) {
-  return format(value, "MM月dd日 HH:mm", {
+  return format(value, "MM月d日 HH:mm", {
     locale: zhCN,
   });
 }
@@ -81,6 +87,59 @@ function toScheduledForDate(isoValue: string) {
 
 function sameReminderSlot(left: Date | null, right: Date) {
   return !!left && left.getTime() === right.getTime();
+}
+
+function derivePreferredTone(reminderStyle: ReminderStyleValue) {
+  if (reminderStyle === "gentle") {
+    return "gentle";
+  }
+
+  if (reminderStyle === "ddl_push") {
+    return "deadline_focused";
+  }
+
+  return "minimal";
+}
+
+function deriveReminderStage(
+  dueAt: Date | null,
+  scheduledFor: Date,
+  delayCount: number,
+) {
+  if (delayCount > 0) {
+    return "after_delay";
+  }
+
+  if (!dueAt) {
+    return "light_touch";
+  }
+
+  const minutesToDeadline = Math.round(
+    (dueAt.getTime() - scheduledFor.getTime()) / (1000 * 60),
+  );
+
+  if (minutesToDeadline <= 20) {
+    return "twenty_minutes_before";
+  }
+
+  if (minutesToDeadline <= 120) {
+    return "two_hours_before";
+  }
+
+  if (minutesToDeadline <= 1440) {
+    return "day_before";
+  }
+
+  return "scheduled";
+}
+
+function mapResponseHistory(events: ReminderHistoryEvent[]) {
+  return events.slice(0, 6).map((event) => ({
+    eventType: event.eventType,
+    responseType: event.responseType,
+    happenedAt: event.happenedAt.toISOString(),
+    delayMinutes: event.delayMinutes,
+  }));
 }
 
 async function ensureReminderSentEvent(
@@ -148,7 +207,7 @@ function computeNextReminderAfterResponse(
   return computeNextReminderAfterNotToday(dueAt, baseTime);
 }
 
-export async function getDueReminders(baseTime = new Date()) {
+async function getDueTasks(baseTime: Date) {
   const tasks = await prisma.task.findMany({
     where: {
       status: "active",
@@ -165,29 +224,138 @@ export async function getDueReminders(baseTime = new Date()) {
         createdAt: "asc",
       },
     ],
+    select: {
+      id: true,
+      content: true,
+      parsedAction: true,
+      contextType: true,
+      reminderStyle: true,
+      dueAt: true,
+      nextReminderAt: true,
+      reminderEvents: {
+        where: {
+          eventType: {
+            in: ["accept", "delay", "reject"],
+          },
+        },
+        orderBy: {
+          happenedAt: "desc",
+        },
+        take: 6,
+        select: {
+          eventType: true,
+          responseType: true,
+          happenedAt: true,
+          delayMinutes: true,
+        },
+      },
+    },
   });
 
-  return tasks.map(buildDueReminderItem);
+  if (tasks.length === 0) {
+    return {
+      tasks: [] as DueTaskRecord[],
+      delayCountMap: new Map<string, number>(),
+    };
+  }
+
+  const delayCounts = await prisma.reminderEvent.groupBy({
+    by: ["taskId"],
+    where: {
+      taskId: {
+        in: tasks.map((task) => task.id),
+      },
+      eventType: "delay",
+    },
+    _count: {
+      _all: true,
+    },
+  });
+
+  return {
+    tasks: tasks as DueTaskRecord[],
+    delayCountMap: new Map(
+      delayCounts.map((entry) => [entry.taskId, entry._count._all]),
+    ),
+  };
+}
+
+async function buildDueReminderItem(
+  task: DueTaskRecord,
+  delayCount: number,
+  now: Date,
+) {
+  const scheduledFor = task.nextReminderAt!;
+  const recommendationContext = {
+    taskId: task.id,
+    taskText: task.content,
+    parsedAction: task.parsedAction,
+    contextType: task.contextType,
+    dueAt: task.dueAt,
+    now,
+    scheduledFor,
+    reminderStage: deriveReminderStage(task.dueAt, scheduledFor, delayCount),
+    delayCount,
+    userResponseHistory: mapResponseHistory(task.reminderEvents),
+    preferredTone: derivePreferredTone(task.reminderStyle),
+  };
+  let recommendation;
+
+  try {
+    recommendation = await getOrCreateFirstStepRecommendation(
+      recommendationContext,
+    );
+  } catch {
+    recommendation = buildFallbackFirstStepRecommendationView(
+      recommendationContext,
+    );
+  }
+
+  return {
+    taskId: task.id,
+    content: task.content,
+    contextLabel: getContextLabel(task.contextType),
+    reminderStyleLabel: getReminderStyleLabel(task.reminderStyle),
+    messageShown: buildReminderMessage({
+      content: task.content,
+      parsedAction: task.parsedAction,
+      reminderStyle: task.reminderStyle,
+      dueAt: task.dueAt,
+    }),
+    dueAtLabel: task.dueAt ? formatReminderTime(task.dueAt) : null,
+    scheduledForIso: scheduledFor.toISOString(),
+    scheduledForLabel: formatReminderTime(scheduledFor),
+    recommendationId: recommendation.recommendationId,
+    canDoNow: recommendation.canDoNow,
+    frictionSource: recommendation.frictionSource,
+    decompositionType: recommendation.decompositionType,
+    recommendedFirstStep: recommendation.recommendedFirstStep,
+    recommendationWhy: recommendation.whyThisStep,
+    isSmallerThanOriginal: recommendation.isSmallerThanOriginal,
+    recommendationConfidence: recommendation.confidence,
+    recommendationSource: recommendation.source,
+  } satisfies DueReminderItem;
+}
+
+export async function getDueReminders(baseTime = new Date()) {
+  const { tasks, delayCountMap } = await getDueTasks(baseTime);
+  const reminders: DueReminderItem[] = [];
+
+  for (const task of tasks) {
+    reminders.push(
+      await buildDueReminderItem(
+        task,
+        delayCountMap.get(task.id) ?? 0,
+        baseTime,
+      ),
+    );
+  }
+
+  return reminders;
 }
 
 export async function getUnsentDueReminders(baseTime = new Date()) {
-  const tasks = await prisma.task.findMany({
-    where: {
-      status: "active",
-      nextReminderAt: {
-        not: null,
-        lte: baseTime,
-      },
-    },
-    orderBy: [
-      {
-        nextReminderAt: "asc",
-      },
-      {
-        createdAt: "asc",
-      },
-    ],
-  });
+  const { tasks, delayCountMap } = await getDueTasks(baseTime);
 
   if (tasks.length === 0) {
     return [];
@@ -208,22 +376,36 @@ export async function getUnsentDueReminders(baseTime = new Date()) {
   });
 
   const sentSlots = new Set(
-    existingSentEvents.map((event) => `${event.taskId}:${event.scheduledFor?.toISOString()}`),
+    existingSentEvents.map(
+      (event) => `${event.taskId}:${event.scheduledFor?.toISOString()}`,
+    ),
   );
 
-  return tasks
-    .filter((task) => !sentSlots.has(`${task.id}:${task.nextReminderAt?.toISOString()}`))
-    .map(buildDueReminderItem);
+  const unsentTasks = tasks.filter(
+    (task) => !sentSlots.has(`${task.id}:${task.nextReminderAt?.toISOString()}`),
+  );
+  const reminders: DueReminderItem[] = [];
+
+  for (const task of unsentTasks) {
+    reminders.push(
+      await buildDueReminderItem(
+        task,
+        delayCountMap.get(task.id) ?? 0,
+        baseTime,
+      ),
+    );
+  }
+
+  return reminders;
 }
 
-// “有效提醒”以实际展示为准，因此这里做幂等写入，避免刷新页面时重复计数。
 export async function markRemindersAsSent(reminders: ReminderPayload[]) {
   if (reminders.length === 0) {
     return 0;
   }
 
-  return prisma.$transaction(async (tx) => {
-    let createdCount = 0;
+  const createdCount = await prisma.$transaction(async (tx) => {
+    let count = 0;
 
     for (const reminder of reminders) {
       const existing = await tx.reminderEvent.findFirst({
@@ -236,12 +418,94 @@ export async function markRemindersAsSent(reminders: ReminderPayload[]) {
 
       if (!existing) {
         await ensureReminderSentEvent(tx, reminder);
-        createdCount += 1;
+        count += 1;
       }
     }
 
-    return createdCount;
+    return count;
   });
+
+  await markFirstStepRecommendationsShown(
+    reminders
+      .filter(
+        (
+          reminder,
+        ): reminder is ReminderPayload & { recommendationId: string } =>
+          Boolean(reminder.recommendationId),
+      )
+      .map((reminder) => ({
+        recommendationId: reminder.recommendationId,
+        taskId: reminder.taskId,
+      })),
+  );
+
+  return createdCount;
+}
+
+export async function regenerateReminderFirstStep(input: {
+  taskId: string;
+  scheduledForIso: string;
+  previousRecommendationId?: string | null;
+}) {
+  const scheduledFor = toScheduledForDate(input.scheduledForIso);
+  const task = await prisma.task.findUnique({
+    where: {
+      id: input.taskId,
+    },
+    select: {
+      id: true,
+      content: true,
+      parsedAction: true,
+      contextType: true,
+      reminderStyle: true,
+      dueAt: true,
+      reminderEvents: {
+        where: {
+          eventType: {
+            in: ["accept", "delay", "reject"],
+          },
+        },
+        orderBy: {
+          happenedAt: "desc",
+        },
+        take: 6,
+        select: {
+          eventType: true,
+          responseType: true,
+          happenedAt: true,
+          delayMinutes: true,
+        },
+      },
+    },
+  });
+
+  if (!task) {
+    return null;
+  }
+
+  const delayCount = await prisma.reminderEvent.count({
+    where: {
+      taskId: task.id,
+      eventType: "delay",
+    },
+  });
+
+  return regenerateFirstStepRecommendation(
+    {
+      taskId: task.id,
+      taskText: task.content,
+      parsedAction: task.parsedAction,
+      contextType: task.contextType,
+      dueAt: task.dueAt,
+      now: new Date(),
+      scheduledFor,
+      reminderStage: deriveReminderStage(task.dueAt, scheduledFor, delayCount),
+      delayCount,
+      userResponseHistory: mapResponseHistory(task.reminderEvents as ReminderHistoryEvent[]),
+      preferredTone: derivePreferredTone(task.reminderStyle),
+    },
+    input.previousRecommendationId,
+  );
 }
 
 export async function respondToReminder(input: {
@@ -250,8 +514,9 @@ export async function respondToReminder(input: {
   messageShown: string;
   scheduledForIso: string;
   delayMinutes: number;
+  recommendationId?: string;
 }) {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const task = await tx.task.findUnique({
       where: {
         id: input.taskId,
@@ -263,13 +528,17 @@ export async function respondToReminder(input: {
     }
 
     const scheduledFor = toScheduledForDate(input.scheduledForIso);
-    const resolvedDelayMinutes = Math.min(1440, Math.max(1, input.delayMinutes || 30));
-    const responseMeta = input.responseType === "remind_later"
-      ? {
-          eventType: "delay" as const,
-          delayMinutes: resolvedDelayMinutes,
-        }
-      : resolveReminderResponse(input.responseType);
+    const resolvedDelayMinutes = Math.min(
+      1440,
+      Math.max(1, input.delayMinutes || 30),
+    );
+    const responseMeta =
+      input.responseType === "remind_later"
+        ? {
+            eventType: "delay" as const,
+            delayMinutes: resolvedDelayMinutes,
+          }
+        : resolveReminderResponse(input.responseType);
     const existingResponse = await tx.reminderEvent.findFirst({
       where: {
         taskId: input.taskId,
@@ -325,4 +594,17 @@ export async function respondToReminder(input: {
       sameSlot: sameReminderSlot(task.nextReminderAt, scheduledFor),
     };
   });
+
+  if (
+    result &&
+    input.responseType === "now_start" &&
+    input.recommendationId
+  ) {
+    await markFirstStepRecommendationAccepted({
+      recommendationId: input.recommendationId,
+      taskId: input.taskId,
+    });
+  }
+
+  return result;
 }
