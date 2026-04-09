@@ -15,6 +15,19 @@ type ReminderSentPayload = {
   recommendationId?: string;
 };
 
+function logReminderActionDebug(message: string, payload?: Record<string, unknown>) {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+
+  if (payload) {
+    console.log(`[reminder-action] ${message}`, payload);
+    return;
+  }
+
+  console.log(`[reminder-action] ${message}`);
+}
+
 function revalidateReminderSurfaces() {
   revalidatePath("/");
   revalidatePath("/tasks");
@@ -37,13 +50,28 @@ export async function regenerateReminderFirstStepAction(formData: FormData) {
     return;
   }
 
-  await regenerateReminderFirstStep({
+  logReminderActionDebug("entered regenerateReminderFirstStepAction", {
     taskId,
     scheduledForIso,
     previousRecommendationId: previousRecommendationId || null,
   });
 
-  revalidateReminderSurfaces();
+  try {
+    await regenerateReminderFirstStep({
+      taskId,
+      scheduledForIso,
+      previousRecommendationId: previousRecommendationId || null,
+    });
+  } catch (error) {
+    logReminderActionDebug("regenerateReminderFirstStepAction failed", {
+      taskId,
+      scheduledForIso,
+      previousRecommendationId: previousRecommendationId || null,
+      error: error instanceof Error ? error.message : "unknown error",
+    });
+  } finally {
+    revalidateReminderSurfaces();
+  }
 }
 
 export async function respondToReminderAction(formData: FormData) {

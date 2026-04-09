@@ -8,6 +8,7 @@ import {
   markFirstStepRecommendationAccepted,
   markFirstStepRecommendationsShown,
   regenerateFirstStepRecommendation,
+  type FirstStepRecommendationView,
 } from "@/lib/first-step-recommender";
 import {
   computeDelayedReminderAt,
@@ -101,6 +102,22 @@ function derivePreferredTone(reminderStyle: ReminderStyleValue) {
   return "minimal";
 }
 
+function logReminderServiceDebug(
+  message: string,
+  payload?: Record<string, unknown>,
+) {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+
+  if (payload) {
+    console.log(`[reminder-service] ${message}`, payload);
+    return;
+  }
+
+  console.log(`[reminder-service] ${message}`);
+}
+
 function deriveReminderStage(
   dueAt: Date | null,
   scheduledFor: Date,
@@ -140,6 +157,73 @@ function mapResponseHistory(events: ReminderHistoryEvent[]) {
     happenedAt: event.happenedAt.toISOString(),
     delayMinutes: event.delayMinutes,
   }));
+}
+
+function buildRecommendationContext(
+  task: Pick<
+    DueTaskRecord,
+    "id" | "content" | "parsedAction" | "contextType" | "dueAt" | "reminderStyle" | "reminderEvents"
+  >,
+  scheduledFor: Date,
+  delayCount: number,
+) {
+  return {
+    taskId: task.id,
+    taskText: task.content,
+    parsedAction: task.parsedAction,
+    contextType: task.contextType,
+    dueAt: task.dueAt,
+    now: new Date(),
+    scheduledFor,
+    reminderStage: deriveReminderStage(task.dueAt, scheduledFor, delayCount),
+    delayCount,
+    userResponseHistory: mapResponseHistory(task.reminderEvents),
+    preferredTone: derivePreferredTone(task.reminderStyle),
+  };
+}
+
+async function getLatestRecommendationView(
+  taskId: string,
+  scheduledFor: Date,
+): Promise<FirstStepRecommendationView | null> {
+  const existing = await prisma.firstStepRecommendation.findFirst({
+    where: {
+      taskId,
+      scheduledFor,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    select: {
+      id: true,
+      canDoNow: true,
+      frictionSource: true,
+      decompositionType: true,
+      recommendedFirstStep: true,
+      whyThisStep: true,
+      isSmallerThanOriginal: true,
+      confidence: true,
+      source: true,
+      modelName: true,
+    },
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  return {
+    recommendationId: existing.id,
+    canDoNow: existing.canDoNow,
+    frictionSource: existing.frictionSource,
+    decompositionType: existing.decompositionType,
+    recommendedFirstStep: existing.recommendedFirstStep,
+    whyThisStep: existing.whyThisStep,
+    isSmallerThanOriginal: existing.isSmallerThanOriginal,
+    confidence: existing.confidence,
+    source: existing.source,
+    modelName: existing.modelName,
+  };
 }
 
 async function ensureReminderSentEvent(
@@ -490,22 +574,55 @@ export async function regenerateReminderFirstStep(input: {
     },
   });
 
-  return regenerateFirstStepRecommendation(
+  const recommendationContext = buildRecommendationContext(
     {
-      taskId: task.id,
-      taskText: task.content,
-      parsedAction: task.parsedAction,
-      contextType: task.contextType,
-      dueAt: task.dueAt,
-      now: new Date(),
-      scheduledFor,
-      reminderStage: deriveReminderStage(task.dueAt, scheduledFor, delayCount),
-      delayCount,
-      userResponseHistory: mapResponseHistory(task.reminderEvents as ReminderHistoryEvent[]),
-      preferredTone: derivePreferredTone(task.reminderStyle),
+      ...task,
+      reminderEvents: task.reminderEvents as ReminderHistoryEvent[],
     },
-    input.previousRecommendationId,
+    scheduledFor,
+    delayCount,
   );
+  const existingRecommendation = await getLatestRecommendationView(
+    task.id,
+    scheduledFor,
+  );
+
+  logReminderServiceDebug("entered regenerateReminderFirstStep", {
+    taskId: task.id,
+    scheduledForIso: input.scheduledForIso,
+    previousRecommendationId: input.previousRecommendationId ?? null,
+    existingRecommendationId: existingRecommendation?.recommendationId ?? null,
+  });
+
+  try {
+    const regeneratedRecommendation = await regenerateFirstStepRecommendation(
+      recommendationContext,
+      input.previousRecommendationId,
+    );
+
+    logReminderServiceDebug("regenerateReminderFirstStep succeeded", {
+      taskId: task.id,
+      scheduledForIso: input.scheduledForIso,
+      recommendationId: regeneratedRecommendation.recommendationId,
+      source: regeneratedRecommendation.source,
+    });
+
+    return regeneratedRecommendation;
+  } catch (error) {
+    logReminderServiceDebug("regenerateReminderFirstStep fell back", {
+      taskId: task.id,
+      scheduledForIso: input.scheduledForIso,
+      previousRecommendationId: input.previousRecommendationId ?? null,
+      existingRecommendationId: existingRecommendation?.recommendationId ?? null,
+      error: error instanceof Error ? error.message : "unknown error",
+    });
+
+    if (existingRecommendation) {
+      return existingRecommendation;
+    }
+
+    return buildFallbackFirstStepRecommendationView(recommendationContext);
+  }
 }
 
 export async function respondToReminder(input: {

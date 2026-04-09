@@ -73,6 +73,19 @@ type RecommendationRecord = {
 
 const MODEL_REQUEST_TIMEOUT_MS = 5000;
 
+function logFirstStepDebug(message: string, payload?: Record<string, unknown>) {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+
+  if (payload) {
+    console.log(`[first-step] ${message}`, payload);
+    return;
+  }
+
+  console.log(`[first-step] ${message}`);
+}
+
 function mapRecommendationRecord(
   record: RecommendationRecord,
 ): FirstStepRecommendationView {
@@ -839,6 +852,10 @@ async function callExpressionModel(
   const { apiKey, model } = getModelConfig();
 
   if (!apiKey) {
+    logFirstStepDebug("skip model call because OPENAI_API_KEY is missing", {
+      taskId: context.taskId,
+      scheduledFor: context.scheduledFor.toISOString(),
+    });
     return {
       modelName: null,
       output: null,
@@ -848,6 +865,12 @@ async function callExpressionModel(
   }
 
   try {
+    logFirstStepDebug("sending expression model request", {
+      taskId: context.taskId,
+      scheduledFor: context.scheduledFor.toISOString(),
+      model,
+    });
+
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
@@ -939,6 +962,12 @@ async function callExpressionModel(
       const output = parseFirstStepModelExpressionOutput(parsed);
 
       if (!output) {
+        logFirstStepDebug("model output failed schema validation", {
+          taskId: context.taskId,
+          scheduledFor: context.scheduledFor.toISOString(),
+          model,
+        });
+
         return {
           modelName: model,
           output: null,
@@ -954,6 +983,13 @@ async function callExpressionModel(
       );
 
       if (validationError) {
+        logFirstStepDebug("model output rejected by hard validation", {
+          taskId: context.taskId,
+          scheduledFor: context.scheduledFor.toISOString(),
+          model,
+          validationError,
+        });
+
         return {
           modelName: model,
           output: null,
@@ -968,6 +1004,12 @@ async function callExpressionModel(
           ruleDecision.recommended_first_step,
         )
       ) {
+        logFirstStepDebug("model output drifted away from rule decision", {
+          taskId: context.taskId,
+          scheduledFor: context.scheduledFor.toISOString(),
+          model,
+        });
+
         return {
           modelName: model,
           output: null,
@@ -975,6 +1017,12 @@ async function callExpressionModel(
           generationError: "OpenAI expression drifted away from rule step",
         };
       }
+
+      logFirstStepDebug("model output accepted", {
+        taskId: context.taskId,
+        scheduledFor: context.scheduledFor.toISOString(),
+        model,
+      });
 
       return {
         modelName: model,
@@ -991,6 +1039,13 @@ async function callExpressionModel(
       };
     }
   } catch (error) {
+    logFirstStepDebug("model request failed", {
+      taskId: context.taskId,
+      scheduledFor: context.scheduledFor.toISOString(),
+      model,
+      error: toErrorMessage(error),
+    });
+
     return {
       modelName: model,
       output: null,
@@ -1034,6 +1089,15 @@ async function createRecommendation(
   const source: FirstStepRecommendationSource = llmResult.output
     ? "llm"
     : "rule_fallback";
+
+  logFirstStepDebug("resolved recommendation candidate", {
+    taskId: context.taskId,
+    scheduledFor: context.scheduledFor.toISOString(),
+    trigger,
+    previousRecommendationId: previousRecommendationId ?? null,
+    source,
+    hasModelOutput: Boolean(llmResult.output),
+  });
 
   const recommendation = await db.firstStepRecommendation.create({
     data: {
@@ -1097,6 +1161,14 @@ async function createRecommendation(
       },
     });
   }
+
+  logFirstStepDebug("persisted recommendation", {
+    taskId: context.taskId,
+    scheduledFor: context.scheduledFor.toISOString(),
+    trigger,
+    recommendationId: recommendation.id,
+    source: recommendation.source,
+  });
 
   return mapRecommendationRecord(recommendation);
 }

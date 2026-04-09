@@ -192,7 +192,7 @@ export function ReminderCenter({
                 <div>
                   <div className="text-zinc-500">推荐的第一步</div>
                   <div className="mt-1 text-base font-semibold text-zinc-900">
-                    {reminder.recommendedFirstStep}
+                    {reminder.recommendedFirstStep || "先做一个更容易开始的小动作"}
                   </div>
                 </div>
 
@@ -243,7 +243,7 @@ export function ReminderCenter({
                 <div>
                   <dt className="text-zinc-500">为什么先做这一步</dt>
                   <dd className="mt-1 font-medium text-zinc-900">
-                    {reminder.recommendationWhy}
+                    {reminder.recommendationWhy || "先把启动门槛降下来，再继续往下做。"}
                   </dd>
                 </div>
                 <div>
