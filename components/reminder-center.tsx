@@ -27,7 +27,14 @@ import type {
   ReminderRecommendationViewModel,
 } from "@/lib/reminder-service";
 import { cn } from "@/lib/utils";
-import { useUiStore } from "@/stores/ui-store";
+import {
+  convertReminderDelayValue,
+  formatReminderDelayLabel,
+  normalizeReminderDelayValue,
+  toReminderDelayMinutes,
+  type ReminderDelayUnit,
+  useUiStore,
+} from "@/stores/ui-store";
 
 type ReminderCenterProps = {
   reminders: DueReminderItem[];
@@ -37,7 +44,18 @@ type ReminderCenterProps = {
 type ReminderCardProps = {
   reminder: DueReminderItem;
   highlighted: boolean;
-  reminderDelayMinutes: number;
+  defaultDelayValue: number;
+  defaultDelayUnit: ReminderDelayUnit;
+  defaultDelayMinutes: number;
+};
+
+type DelayFieldGroupProps = {
+  inputId: string;
+  value: number;
+  unit: ReminderDelayUnit;
+  onValueChange: (value: number) => void;
+  onUnitChange: (unit: ReminderDelayUnit) => void;
+  compact?: boolean;
 };
 
 const frictionLabelMap: Record<string, string> = {
@@ -66,6 +84,36 @@ const initialRecommendationActionState: ReminderRecommendationActionState = {
   recommendation: null,
 };
 
+const delayUnitOptions: Array<{
+  value: ReminderDelayUnit;
+  label: string;
+}> = [
+  { value: "minutes", label: "分钟" },
+  { value: "hours", label: "小时" },
+];
+
+function getDelayLimitText(unit: ReminderDelayUnit) {
+  return unit === "minutes" ? "分钟模式 1 到 59" : "小时模式 1 到 24";
+}
+
+function getDelayInputBounds(unit: ReminderDelayUnit) {
+  return unit === "minutes" ? { min: 1, max: 59 } : { min: 1, max: 24 };
+}
+
+function parseDelayInput(
+  rawValue: string,
+  unit: ReminderDelayUnit,
+  fallbackValue: number,
+) {
+  const parsed = Number(rawValue);
+
+  if (!Number.isFinite(parsed)) {
+    return normalizeReminderDelayValue(fallbackValue, unit);
+  }
+
+  return normalizeReminderDelayValue(parsed, unit);
+}
+
 function toRecommendationViewModel(
   reminder: DueReminderItem,
 ): ReminderRecommendationViewModel | null {
@@ -86,10 +134,117 @@ function toRecommendationViewModel(
   };
 }
 
+function DelayFieldGroup({
+  inputId,
+  value,
+  unit,
+  onValueChange,
+  onUnitChange,
+  compact = false,
+}: DelayFieldGroupProps) {
+  const bounds = getDelayInputBounds(unit);
+
+  return (
+    <div
+      className={cn(
+        "grid gap-3",
+        compact ? "grid-cols-[minmax(0,1fr)_112px]" : "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_132px]",
+      )}
+    >
+      <div className="rounded-[20px] border border-zinc-200 bg-white px-4 py-3">
+        <label
+          htmlFor={inputId}
+          className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-500"
+        >
+          数值
+        </label>
+        <input
+          id={inputId}
+          type="number"
+          inputMode="numeric"
+          min={bounds.min}
+          max={bounds.max}
+          value={value}
+          onChange={(event) =>
+            onValueChange(parseDelayInput(event.target.value, unit, value))
+          }
+          className="mt-2 w-full bg-transparent text-base font-medium text-zinc-900 outline-none"
+        />
+      </div>
+
+      <div className="rounded-[20px] border border-zinc-200 bg-white px-4 py-3">
+        <label
+          htmlFor={`${inputId}-unit`}
+          className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-500"
+        >
+          单位
+        </label>
+        <select
+          id={`${inputId}-unit`}
+          value={unit}
+          onChange={(event) =>
+            onUnitChange(event.target.value as ReminderDelayUnit)
+          }
+          className="mt-2 w-full bg-transparent text-base font-medium text-zinc-900 outline-none"
+        >
+          {delayUnitOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+function ReminderDelaySettings({
+  defaultDelayValue,
+  defaultDelayUnit,
+  setDefaultDelayValue,
+  setDefaultDelayUnit,
+}: {
+  defaultDelayValue: number;
+  defaultDelayUnit: ReminderDelayUnit;
+  setDefaultDelayValue: (value: number) => void;
+  setDefaultDelayUnit: (unit: ReminderDelayUnit) => void;
+}) {
+  return (
+    <section className="rounded-[24px] border border-white/80 bg-white/92 p-4 shadow-[0_18px_48px_-30px_rgba(15,23,42,0.2)]">
+      <div className="space-y-3">
+        <div>
+          <div className="text-sm font-medium text-zinc-800">默认稍后提醒</div>
+          <div className="mt-1 text-sm leading-6 text-zinc-500">
+            不单独修改任务时，系统就按这里的默认值处理。
+          </div>
+        </div>
+
+        <DelayFieldGroup
+          inputId="global-delay"
+          value={defaultDelayValue}
+          unit={defaultDelayUnit}
+          onValueChange={setDefaultDelayValue}
+          onUnitChange={setDefaultDelayUnit}
+        />
+
+        <div className="rounded-[18px] bg-emerald-50/80 px-4 py-3 text-sm text-emerald-900">
+          默认将在 {formatReminderDelayLabel(defaultDelayValue, defaultDelayUnit)} 提醒
+        </div>
+
+        <div className="text-xs leading-6 text-zinc-500">
+          {getDelayLimitText(defaultDelayUnit)}，提交前会自动换算成分钟。
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ReminderCard({
   reminder,
   highlighted,
-  reminderDelayMinutes,
+  defaultDelayValue,
+  defaultDelayUnit,
+  defaultDelayMinutes,
 }: ReminderCardProps) {
   const [switchState, switchAction] = useActionState(
     regenerateReminderFirstStepAction,
@@ -102,6 +257,9 @@ function ReminderCard({
   const [currentRecommendation, setCurrentRecommendation] = useState(
     initialRecommendation,
   );
+  const [isCustomDelayOpen, setIsCustomDelayOpen] = useState(false);
+  const [customDelayValue, setCustomDelayValue] = useState(defaultDelayValue);
+  const [customDelayUnit, setCustomDelayUnit] = useState(defaultDelayUnit);
 
   useEffect(() => {
     setCurrentRecommendation(initialRecommendation);
@@ -113,6 +271,15 @@ function ReminderCard({
     }
   }, [switchState.recommendation]);
 
+  useEffect(() => {
+    if (isCustomDelayOpen) {
+      return;
+    }
+
+    setCustomDelayValue(defaultDelayValue);
+    setCustomDelayUnit(defaultDelayUnit);
+  }, [defaultDelayUnit, defaultDelayValue, isCustomDelayOpen]);
+
   const showRecommendation =
     reminder.showRecommendation && currentRecommendation !== null;
   const canSwitchRecommendation =
@@ -121,6 +288,26 @@ function ReminderCard({
     Boolean(currentRecommendation?.recommendationId) &&
     switchState.status !== "exhausted";
   const currentRecommendationId = currentRecommendation?.recommendationId ?? "";
+  const customDelayMinutes = toReminderDelayMinutes(
+    customDelayValue,
+    customDelayUnit,
+  );
+
+  function toggleCustomDelay() {
+    if (!isCustomDelayOpen) {
+      setCustomDelayValue(defaultDelayValue);
+      setCustomDelayUnit(defaultDelayUnit);
+    }
+
+    setIsCustomDelayOpen((current) => !current);
+  }
+
+  function handleCustomUnitChange(nextUnit: ReminderDelayUnit) {
+    setCustomDelayValue((currentValue) =>
+      convertReminderDelayValue(currentValue, customDelayUnit, nextUnit),
+    );
+    setCustomDelayUnit(nextUnit);
+  }
 
   return (
     <article
@@ -281,57 +468,121 @@ function ReminderCard({
             </FormSubmitButton>
           </form>
 
-          <form
-            action={respondToReminderAction}
-            className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4"
-          >
-            <input type="hidden" name="taskId" value={reminder.taskId} />
-            <input type="hidden" name="responseType" value="remind_later" />
-            <input type="hidden" name="messageShown" value={reminder.messageShown} />
-            <input
-              type="hidden"
-              name="scheduledForIso"
-              value={reminder.scheduledForIso}
-            />
-            <input
-              type="hidden"
-              name="delayMinutes"
-              value={String(reminderDelayMinutes)}
-            />
-            <input
-              type="hidden"
-              name="recommendationId"
-              value={currentRecommendationId}
-            />
-            <label
-              htmlFor={`delay-${reminder.taskId}`}
-              className="block text-sm font-medium text-zinc-700"
-            >
-              过多久再提醒更合适？
-            </label>
-            <div
-              id={`delay-${reminder.taskId}`}
-              className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3"
-            >
+          <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <div className="text-sm font-medium text-zinc-900">
-                  当前设为 {reminderDelayMinutes} 分钟后
-                </div>
-                <div className="mt-1 text-xs text-zinc-500">
-                  你可以在页头把这个值改成 24 小时内的任意分钟数。
+                <div className="text-sm font-medium text-zinc-900">稍后提醒</div>
+                <div className="mt-1 text-sm leading-6 text-zinc-500">
+                  直接点击会按默认设置处理：{formatReminderDelayLabel(defaultDelayValue, defaultDelayUnit)}
                 </div>
               </div>
-              <FormSubmitButton
-                pendingText="稍等..."
-                className="shrink-0 border border-zinc-200 bg-white px-4 py-3 text-zinc-700 hover:border-emerald-200 hover:bg-emerald-50"
-              >
-                <span className="inline-flex items-center gap-2">
-                  <Clock3 className="h-4 w-4" />
-                  稍后提醒我
-                </span>
-              </FormSubmitButton>
+
+              <div className="flex gap-2">
+                <form action={respondToReminderAction}>
+                  <input type="hidden" name="taskId" value={reminder.taskId} />
+                  <input type="hidden" name="responseType" value="remind_later" />
+                  <input
+                    type="hidden"
+                    name="messageShown"
+                    value={reminder.messageShown}
+                  />
+                  <input
+                    type="hidden"
+                    name="scheduledForIso"
+                    value={reminder.scheduledForIso}
+                  />
+                  <input
+                    type="hidden"
+                    name="delayMinutes"
+                    value={String(defaultDelayMinutes)}
+                  />
+                  <input
+                    type="hidden"
+                    name="recommendationId"
+                    value={currentRecommendationId}
+                  />
+                  <FormSubmitButton
+                    pendingText="稍等..."
+                    className="border border-zinc-200 bg-white px-4 py-3 text-zinc-700 hover:border-emerald-200 hover:bg-emerald-50"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <Clock3 className="h-4 w-4" />
+                      稍后提醒我
+                    </span>
+                  </FormSubmitButton>
+                </form>
+
+                <button
+                  type="button"
+                  onClick={toggleCustomDelay}
+                  className="inline-flex min-h-11 items-center justify-center rounded-[18px] border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-100"
+                >
+                  {isCustomDelayOpen ? "收起自定义" : "自定义"}
+                </button>
+              </div>
             </div>
-          </form>
+
+            {isCustomDelayOpen ? (
+              <form
+                action={respondToReminderAction}
+                className="mt-4 space-y-3 rounded-[20px] border border-emerald-100 bg-white/90 p-4"
+              >
+                <input type="hidden" name="taskId" value={reminder.taskId} />
+                <input type="hidden" name="responseType" value="remind_later" />
+                <input
+                  type="hidden"
+                  name="messageShown"
+                  value={reminder.messageShown}
+                />
+                <input
+                  type="hidden"
+                  name="scheduledForIso"
+                  value={reminder.scheduledForIso}
+                />
+                <input
+                  type="hidden"
+                  name="delayMinutes"
+                  value={String(customDelayMinutes)}
+                />
+                <input
+                  type="hidden"
+                  name="recommendationId"
+                  value={currentRecommendationId}
+                />
+
+                <div>
+                  <div className="text-sm font-medium text-zinc-900">
+                    这一次单独设置
+                  </div>
+                  <div className="mt-1 text-xs leading-6 text-zinc-500">
+                    只影响当前这条提醒，不会改掉全局默认值。
+                  </div>
+                </div>
+
+                <DelayFieldGroup
+                  inputId={`custom-delay-${reminder.taskId}`}
+                  value={customDelayValue}
+                  unit={customDelayUnit}
+                  onValueChange={setCustomDelayValue}
+                  onUnitChange={handleCustomUnitChange}
+                  compact
+                />
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-xs leading-6 text-zinc-500">
+                    本次将按 {formatReminderDelayLabel(customDelayValue, customDelayUnit)} 提醒。
+                    {getDelayLimitText(customDelayUnit)}
+                  </div>
+                  <FormSubmitButton
+                    pendingText="稍等..."
+                    className="bg-emerald-600 px-4 py-3 text-white hover:bg-emerald-700"
+                  >
+                    按这个时间提醒
+                  </FormSubmitButton>
+                </div>
+              </form>
+            ) : null}
+          </section>
 
           <form action={respondToReminderAction}>
             <input type="hidden" name="taskId" value={reminder.taskId} />
@@ -368,10 +619,16 @@ export function ReminderCenter({
   highlightedTaskId = null,
 }: ReminderCenterProps) {
   const [, startTransition] = useTransition();
-  const reminderDelayMinutes = useUiStore((state) => state.reminderDelayMinutes);
-  const setReminderDelayMinutes = useUiStore(
-    (state) => state.setReminderDelayMinutes,
+  const defaultDelayValue = useUiStore((state) => state.reminderDelayValue);
+  const defaultDelayUnit = useUiStore((state) => state.reminderDelayUnit);
+  const setDefaultDelayValue = useUiStore(
+    (state) => state.setReminderDelayValue,
   );
+  const setDefaultDelayUnit = useUiStore((state) => state.setReminderDelayUnit);
+  const defaultDelayMinutes = useUiStore((state) =>
+    toReminderDelayMinutes(state.reminderDelayValue, state.reminderDelayUnit),
+  );
+
   const reminderPayload = useMemo(
     () =>
       reminders.map((reminder) => ({
@@ -415,25 +672,12 @@ export function ReminderCenter({
   if (reminders.length === 0) {
     return (
       <div className="space-y-4">
-        <div className="rounded-[24px] border border-white/80 bg-white/92 p-4 shadow-[0_18px_48px_-30px_rgba(15,23,42,0.2)]">
-          <div className="text-sm font-medium text-zinc-800">稍后提醒设置</div>
-          <div className="mt-2 text-sm leading-6 text-zinc-500">
-            当前统一按这个时长延后提醒，范围 1 分钟到 24 小时。
-          </div>
-          <div className="mt-3 flex items-center gap-3 rounded-[20px] border border-zinc-200 bg-zinc-50/80 px-4 py-3">
-            <input
-              value={reminderDelayMinutes}
-              onChange={(event) =>
-                setReminderDelayMinutes(Number(event.target.value || 30))
-              }
-              type="number"
-              min={1}
-              max={1440}
-              className="w-full bg-transparent text-sm text-zinc-900"
-            />
-            <span className="shrink-0 text-sm text-zinc-500">分钟后</span>
-          </div>
-        </div>
+        <ReminderDelaySettings
+          defaultDelayValue={defaultDelayValue}
+          defaultDelayUnit={defaultDelayUnit}
+          setDefaultDelayValue={setDefaultDelayValue}
+          setDefaultDelayUnit={setDefaultDelayUnit}
+        />
 
         <div className="rounded-[28px] border border-dashed border-zinc-300 bg-white/75 p-6 text-sm leading-7 text-zinc-500">
           当前没有到点提醒。你可以先去任务页手动触发，或者等下一次提醒时间到。
@@ -444,36 +688,21 @@ export function ReminderCenter({
 
   return (
     <div className="space-y-4">
-      <section className="rounded-[24px] border border-white/80 bg-white/92 p-4 shadow-[0_18px_48px_-30px_rgba(15,23,42,0.2)]">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm font-medium text-zinc-800">稍后提醒设置</div>
-            <div className="mt-1 text-sm leading-6 text-zinc-500">
-              当前页所有“稍后提醒我”都会使用这个时长，范围 1 分钟到 24 小时。
-            </div>
-          </div>
-          <div className="flex items-center gap-3 rounded-[20px] border border-zinc-200 bg-zinc-50/80 px-4 py-3 sm:min-w-56">
-            <input
-              value={reminderDelayMinutes}
-              onChange={(event) =>
-                setReminderDelayMinutes(Number(event.target.value || 30))
-              }
-              type="number"
-              min={1}
-              max={1440}
-              className="w-full bg-transparent text-sm text-zinc-900"
-            />
-            <span className="shrink-0 text-sm text-zinc-500">分钟后</span>
-          </div>
-        </div>
-      </section>
+      <ReminderDelaySettings
+        defaultDelayValue={defaultDelayValue}
+        defaultDelayUnit={defaultDelayUnit}
+        setDefaultDelayValue={setDefaultDelayValue}
+        setDefaultDelayUnit={setDefaultDelayUnit}
+      />
 
       {reminders.map((reminder) => (
         <ReminderCard
           key={`${reminder.taskId}-${reminder.scheduledForIso}`}
           reminder={reminder}
           highlighted={highlightedTaskId === reminder.taskId}
-          reminderDelayMinutes={reminderDelayMinutes}
+          defaultDelayValue={defaultDelayValue}
+          defaultDelayUnit={defaultDelayUnit}
+          defaultDelayMinutes={defaultDelayMinutes}
         />
       ))}
     </div>
