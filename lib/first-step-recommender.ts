@@ -1,6 +1,10 @@
 import { Prisma, type FirstStepRecommendationSource } from "@prisma/client";
 
 import {
+  evaluateFirstStepGateway,
+  type FirstStepGatewayDecision,
+} from "@/lib/first-step-gateway";
+import {
   parseFirstStepModelExpressionOutput,
   type FirstStepDecompositionType,
   type FirstStepFrictionSource,
@@ -60,6 +64,7 @@ export type FirstStepRecommendationContext = {
   delayCount: number;
   userResponseHistory: ResponseHistoryItem[];
   preferredTone: string;
+  gatewayDecision?: FirstStepGatewayDecision;
 };
 
 type RecommendationRecord = {
@@ -118,6 +123,22 @@ function mapRecommendationRecord(
     source: record.source,
     modelName: record.modelName,
   };
+}
+
+function resolveGatewayDecision(
+  context: FirstStepRecommendationContext,
+): FirstStepGatewayDecision {
+  return (
+    context.gatewayDecision ??
+    evaluateFirstStepGateway({
+      taskText: context.taskText,
+      parsedAction: context.parsedAction,
+      contextType: context.contextType,
+      dueAt: context.dueAt,
+      now: context.now,
+      delayCount: context.delayCount,
+    })
+  );
 }
 
 function toErrorMessage(error: unknown) {
@@ -700,6 +721,45 @@ function buildOrganizeStep(context: FirstStepRecommendationContext) {
   return "先把最显眼的 3 样东西归到一起";
 }
 
+function buildScheduleEventStep(
+  context: FirstStepRecommendationContext,
+  decompositionType: FirstStepDecompositionType,
+) {
+  if (decompositionType === "confirm_information") {
+    if (/(鍦板潃|鍦扮偣|璺嚎|瀵艰埅|鎬庝箞鍘?)/.test(context.taskText)) {
+      return "鍏堟妸鍦板潃澶嶅埗鍒板湴鍥鹃噷";
+    }
+
+    if (/(鏃堕棿|鍑犵偣|绾﹀嚑鐐?)/.test(context.taskText)) {
+      return "鍏堢‘璁や竴涓嬪叿浣撴椂闂?";
+    }
+
+    return "鍏堢‘璁よ繖浠朵簨鐨勪竴涓叧閿俊鎭?";
+  }
+
+  if (decompositionType === "prepare_material") {
+    if (/(鎵撳嵃|鏉愭枡|鏂囦欢|闄勪欢)/.test(context.taskText)) {
+      return "鍏堟妸瑕佺敤鐨勬枃浠舵斁鍒板悓涓€涓湴鏂?";
+    }
+
+    if (/(璇佷欢|绠€鍘?|浣滃搧闆?)/.test(context.taskText)) {
+      return "鍏堟妸瑕佸甫鐨勬潗鏂欐斁鍒颁竴璧?";
+    }
+
+    return "鍏堟妸杩欎欢浜嬭鍑嗗鐨勪竴鏍蜂笢瑗垮噯澶囧ソ";
+  }
+
+  if (decompositionType === "open_entry") {
+    if (/(鍦板潃|鍦扮偣|璺嚎|瀵艰埅)/.test(context.taskText)) {
+      return "鍏堟墦寮€鍦板浘鎶婄洰鐨勫湴璁颁笅鏉?";
+    }
+
+    return "鍏堟墦寮€澶囧繕褰曟妸闇€瑕佸噯澶囩殑涓€鏍峰啓涓嬫潵";
+  }
+
+  return "鍏堟妸杩欎欢浜嬭鍑嗗鐨勪竴鏍蜂笢瑗挎斁鍒版墜杈?";
+}
+
 function buildDecisionStep(context: FirstStepRecommendationContext) {
   if (/(哪个|哪一个|选择|决定)/.test(context.taskText)) {
     return "先删掉一个你最不想选的选项";
@@ -984,6 +1044,29 @@ function buildOrganizeStepVariants(
   return steps;
 }
 
+function buildScheduleEventStepVariants(
+  context: FirstStepRecommendationContext,
+  decompositionType: FirstStepDecompositionType,
+) {
+  const steps: string[] = [];
+  pushUniqueStep(steps, buildScheduleEventStep(context, decompositionType));
+
+  if (decompositionType === "confirm_information") {
+    pushUniqueStep(steps, "鍏堢‘璁や竴涓嬪湴鐐规垨鏃堕棿");
+    pushUniqueStep(steps, "鍏堟妸鏈€瀹规槗鍗′綇鐨勪俊鎭煡娓呮");
+  } else if (decompositionType === "prepare_material") {
+    pushUniqueStep(steps, "鍏堟妸瑕佸甫鐨勪竴鏍蜂笢瑗挎斁鍒伴棬鍙?");
+    pushUniqueStep(steps, "鍏堟妸瑕佺敤鐨勬枃浠舵垨鏉愭枡褰掑埌涓€璧?");
+  } else if (decompositionType === "open_entry") {
+    pushUniqueStep(steps, "鍏堟墦寮€鍦板浘鎴栧蹇樺綍");
+    pushUniqueStep(steps, "鍏堟妸鍑哄彂鍓嶈鐪嬬殑閭ｄ釜鍏ュ彛鎵撳紑");
+  } else {
+    pushUniqueStep(steps, "鍏堟妸杩欎欢浜嬪墠闈㈢己鐨勪竴鏍峰噯澶囧ソ");
+  }
+
+  return steps;
+}
+
 function buildDecisionStepVariants(
   context: FirstStepRecommendationContext,
   decompositionType: FirstStepDecompositionType,
@@ -1035,6 +1118,10 @@ function buildStepVariantsForTaskType(
 
   if (taskType === "organize_household") {
     return buildOrganizeStepVariants(context, decompositionType);
+  }
+
+  if (taskType === "schedule_event") {
+    return buildScheduleEventStepVariants(context, decompositionType);
   }
 
   return buildDecisionStepVariants(context, decompositionType);
@@ -1101,6 +1188,14 @@ function getCandidateDecompositionOrder(
                     "lower_psychological_barrier",
                     "open_entry",
                   ]
+                : taskType === "schedule_event"
+                  ? [
+                      primaryDecompositionType,
+                      "prepare_material",
+                      "confirm_information",
+                      "open_entry",
+                      "alternative_scene",
+                    ]
                 : [
                     primaryDecompositionType,
                     "confirm_information",
@@ -1182,9 +1277,20 @@ function buildCandidateDecision(
 function buildPrimaryRuleDecision(
   context: FirstStepRecommendationContext,
 ): RuleDecision {
-  const taskType = classifyTaskType(context.taskText);
-  const frictionSource = deriveFrictionSource(context, taskType);
-  const decompositionType = deriveDecompositionType(frictionSource);
+  const gatewayDecision = resolveGatewayDecision(context);
+  const fallbackTaskType = classifyTaskType(context.taskText);
+  const taskType = gatewayDecision.taskType ?? fallbackTaskType;
+  const frictionSource =
+    gatewayDecision.preferredFrictionSource ??
+    deriveFrictionSource(context, taskType);
+  const derivedDecompositionType = deriveDecompositionType(frictionSource);
+  const decompositionType =
+    gatewayDecision.allowedDecompositionTypes.length > 0 &&
+    !gatewayDecision.allowedDecompositionTypes.includes(
+      derivedDecompositionType,
+    )
+      ? gatewayDecision.allowedDecompositionTypes[0]
+      : derivedDecompositionType;
   const canDoNow = deriveCanDoNow(frictionSource);
 
   const recommendedFirstStep =
@@ -1200,7 +1306,9 @@ function buildPrimaryRuleDecision(
               ? buildOfflineStep(context, decompositionType)
               : taskType === "organize_household"
                 ? buildOrganizeStep(context)
-                : buildDecisionStep(context);
+                : taskType === "schedule_event"
+                  ? buildScheduleEventStep(context, decompositionType)
+                  : buildDecisionStep(context);
 
   return {
     taskType,
@@ -1221,6 +1329,12 @@ function buildRuleCandidatePool(
     usedDecompositionTypes?: Set<string>;
   },
 ): RuleDecisionCandidate[] {
+  const gatewayDecision = resolveGatewayDecision(context);
+
+  if (!gatewayDecision.shouldRecommend) {
+    return [];
+  }
+
   const primaryDecision = buildPrimaryRuleDecision(context);
   const excludedTexts = options?.excludedTexts ?? [];
   const usedDecompositionTypes =
@@ -1229,6 +1343,10 @@ function buildRuleCandidatePool(
     primaryDecision.taskType,
     primaryDecision.decomposition_type,
     usedDecompositionTypes,
+  ).filter(
+    (item) =>
+      gatewayDecision.allowedDecompositionTypes.length === 0 ||
+      gatewayDecision.allowedDecompositionTypes.includes(item),
   );
   const candidates: RuleDecisionCandidate[] = [];
 
@@ -1279,7 +1397,11 @@ function buildRuleCandidatePool(
     usedDecompositionTypes: Array.from(usedDecompositionTypes),
   });
 
-  if (candidates.length === 0) {
+  if (
+    candidates.length === 0 &&
+    excludedTexts.length === 0 &&
+    usedDecompositionTypes.size === 0
+  ) {
     return [
       {
         ...primaryDecision,
@@ -1288,7 +1410,7 @@ function buildRuleCandidatePool(
     ];
   }
 
-  return candidates;
+  return candidates.slice(0, 5);
 }
 
 function buildRuleDecision(
@@ -1869,10 +1991,38 @@ export async function getOrCreateFirstStepRecommendation(
   );
 }
 
+export async function hasAlternativeFirstStepRecommendation(
+  context: FirstStepRecommendationContext,
+  previousRecommendationId?: string | null,
+) {
+  const gatewayDecision = resolveGatewayDecision(context);
+
+  if (!gatewayDecision.shouldRecommend) {
+    return false;
+  }
+
+  const history = await getRecommendationHistoryForSlot(prisma, context);
+
+  return Boolean(
+    pickNextCandidate(context, history, previousRecommendationId),
+  );
+}
+
 export async function regenerateFirstStepRecommendation(
   context: FirstStepRecommendationContext,
   previousRecommendationId?: string | null,
 ) {
+  const gatewayDecision = resolveGatewayDecision(context);
+
+  if (!gatewayDecision.shouldRecommend) {
+    return {
+      status: "exhausted" as const,
+      recommendation: null,
+      message:
+        gatewayDecision.reason ?? "当前这类任务不需要额外推荐第一步。",
+    };
+  }
+
   const history = await getRecommendationHistoryForSlot(prisma, context);
   const nextCandidate = pickNextCandidate(
     context,

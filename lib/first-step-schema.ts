@@ -5,7 +5,13 @@ export type FirstStepTaskType =
   | "confirm_lookup"
   | "offline_execute"
   | "organize_household"
-  | "decision";
+  | "decision"
+  | "schedule_event";
+
+export type FirstStepGatewayCategory =
+  | "startup"
+  | "schedule_event"
+  | "event_with_preparation";
 
 export type FirstStepFrictionSource =
   | "task_too_large"

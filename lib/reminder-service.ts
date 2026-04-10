@@ -2,9 +2,11 @@ import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { Prisma } from "@prisma/client";
 
+import { evaluateFirstStepGateway } from "@/lib/first-step-gateway";
 import {
   buildFallbackFirstStepRecommendationView,
   getOrCreateFirstStepRecommendation,
+  hasAlternativeFirstStepRecommendation,
   markFirstStepRecommendationAccepted,
   markFirstStepRecommendationsShown,
   regenerateFirstStepRecommendation,
@@ -59,6 +61,8 @@ export type DueReminderItem = {
   dueAtLabel: string | null;
   scheduledForIso: string;
   scheduledForLabel: string;
+  showRecommendation: boolean;
+  canSwitchRecommendation: boolean;
   recommendationId: string;
   canDoNow: boolean;
   frictionSource: string;
@@ -185,6 +189,15 @@ function buildRecommendationContext(
   scheduledFor: Date,
   delayCount: number,
 ) {
+  const gatewayDecision = evaluateFirstStepGateway({
+    taskText: task.content,
+    parsedAction: task.parsedAction,
+    contextType: task.contextType,
+    dueAt: task.dueAt,
+    now: new Date(),
+    delayCount,
+  });
+
   return {
     taskId: task.id,
     taskText: task.content,
@@ -197,6 +210,7 @@ function buildRecommendationContext(
     delayCount,
     userResponseHistory: mapResponseHistory(task.reminderEvents),
     preferredTone: derivePreferredTone(task.reminderStyle),
+    gatewayDecision,
   };
 }
 
@@ -404,29 +418,37 @@ async function buildDueReminderItem(
   now: Date,
 ) {
   const scheduledFor = task.nextReminderAt!;
-  const recommendationContext = {
-    taskId: task.id,
-    taskText: task.content,
-    parsedAction: task.parsedAction,
-    contextType: task.contextType,
-    dueAt: task.dueAt,
-    now,
-    scheduledFor,
-    reminderStage: deriveReminderStage(task.dueAt, scheduledFor, delayCount),
-    delayCount,
-    userResponseHistory: mapResponseHistory(task.reminderEvents),
-    preferredTone: derivePreferredTone(task.reminderStyle),
-  };
-  let recommendation;
+  const recommendationContext = buildRecommendationContext(task, scheduledFor, delayCount);
+  recommendationContext.now = now;
+  const shouldShowRecommendation =
+    recommendationContext.gatewayDecision?.shouldRecommend ?? true;
+  let recommendation:
+    | FirstStepRecommendationView
+    | ReturnType<typeof buildFallbackFirstStepRecommendationView>
+    | null = null;
+  let canSwitchRecommendation = false;
 
-  try {
-    recommendation = await getOrCreateFirstStepRecommendation(
-      recommendationContext,
-    );
-  } catch {
-    recommendation = buildFallbackFirstStepRecommendationView(
-      recommendationContext,
-    );
+  if (shouldShowRecommendation) {
+    try {
+      recommendation = await getOrCreateFirstStepRecommendation(
+        recommendationContext,
+      );
+    } catch {
+      recommendation = buildFallbackFirstStepRecommendationView(
+        recommendationContext,
+      );
+    }
+
+    if (recommendation?.recommendationId) {
+      try {
+        canSwitchRecommendation = await hasAlternativeFirstStepRecommendation(
+          recommendationContext,
+          recommendation.recommendationId,
+        );
+      } catch {
+        canSwitchRecommendation = false;
+      }
+    }
   }
 
   return {
@@ -443,15 +465,17 @@ async function buildDueReminderItem(
     dueAtLabel: task.dueAt ? formatReminderTime(task.dueAt) : null,
     scheduledForIso: scheduledFor.toISOString(),
     scheduledForLabel: formatReminderTime(scheduledFor),
-    recommendationId: recommendation.recommendationId,
-    canDoNow: recommendation.canDoNow,
-    frictionSource: recommendation.frictionSource,
-    decompositionType: recommendation.decompositionType,
-    recommendedFirstStep: recommendation.recommendedFirstStep,
-    recommendationWhy: recommendation.whyThisStep,
-    isSmallerThanOriginal: recommendation.isSmallerThanOriginal,
-    recommendationConfidence: recommendation.confidence,
-    recommendationSource: recommendation.source,
+    showRecommendation: shouldShowRecommendation,
+    canSwitchRecommendation,
+    recommendationId: recommendation?.recommendationId ?? "",
+    canDoNow: recommendation?.canDoNow ?? false,
+    frictionSource: recommendation?.frictionSource ?? "",
+    decompositionType: recommendation?.decompositionType ?? "",
+    recommendedFirstStep: recommendation?.recommendedFirstStep ?? "",
+    recommendationWhy: recommendation?.whyThisStep ?? "",
+    isSmallerThanOriginal: recommendation?.isSmallerThanOriginal ?? false,
+    recommendationConfidence: recommendation?.confidence ?? 0,
+    recommendationSource: recommendation?.source ?? "rule_fallback",
   } satisfies DueReminderItem;
 }
 
@@ -620,6 +644,8 @@ export async function regenerateReminderFirstStep(input: {
     scheduledFor,
     delayCount,
   );
+  const shouldShowRecommendation =
+    recommendationContext.gatewayDecision?.shouldRecommend ?? true;
   const existingRecommendation = await getLatestRecommendationView(
     task.id,
     scheduledFor,
@@ -631,6 +657,16 @@ export async function regenerateReminderFirstStep(input: {
     previousRecommendationId: input.previousRecommendationId ?? null,
     existingRecommendationId: existingRecommendation?.recommendationId ?? null,
   });
+
+  if (!shouldShowRecommendation) {
+    return {
+      status: "exhausted",
+      message:
+        recommendationContext.gatewayDecision?.reason ??
+        "当前这类任务不需要额外推荐第一步。",
+      recommendation: null,
+    };
+  }
 
   try {
     const regeneratedRecommendation = await regenerateFirstStepRecommendation(

@@ -1,6 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import {
   BellRing,
   CheckCircle2,
@@ -62,7 +68,11 @@ const initialRecommendationActionState: ReminderRecommendationActionState = {
 
 function toRecommendationViewModel(
   reminder: DueReminderItem,
-): ReminderRecommendationViewModel {
+): ReminderRecommendationViewModel | null {
+  if (!reminder.showRecommendation) {
+    return null;
+  }
+
   return {
     recommendationId: reminder.recommendationId,
     canDoNow: reminder.canDoNow,
@@ -103,6 +113,15 @@ function ReminderCard({
     }
   }, [switchState.recommendation]);
 
+  const showRecommendation =
+    reminder.showRecommendation && currentRecommendation !== null;
+  const canSwitchRecommendation =
+    showRecommendation &&
+    reminder.canSwitchRecommendation &&
+    Boolean(currentRecommendation?.recommendationId) &&
+    switchState.status !== "exhausted";
+  const currentRecommendationId = currentRecommendation?.recommendationId ?? "";
+
   return (
     <article
       id={`reminder-${reminder.taskId}`}
@@ -140,95 +159,101 @@ function ReminderCard({
           {reminder.messageShown}
         </div>
 
-        <section className="rounded-[22px] bg-zinc-50/80 p-4 text-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-zinc-500">推荐的第一步</div>
-              <div className="mt-1 text-base font-semibold text-zinc-900">
-                {currentRecommendation.recommendedFirstStep || "先做一个更容易开始的小动作"}
+        {showRecommendation && currentRecommendation ? (
+          <section className="rounded-[22px] bg-zinc-50/80 p-4 text-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-zinc-500">推荐的第一步</div>
+                <div className="mt-1 text-base font-semibold text-zinc-900">
+                  {currentRecommendation.recommendedFirstStep ||
+                    "先做一个更容易开始的小动作"}
+                </div>
               </div>
+
+              {canSwitchRecommendation ? (
+                <form action={switchAction}>
+                  <input type="hidden" name="taskId" value={reminder.taskId} />
+                  <input
+                    type="hidden"
+                    name="scheduledForIso"
+                    value={reminder.scheduledForIso}
+                  />
+                  <input
+                    type="hidden"
+                    name="recommendationId"
+                    value={currentRecommendationId}
+                  />
+                  <FormSubmitButton
+                    pendingText="切换中..."
+                    className="shrink-0 border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600 hover:border-emerald-200 hover:bg-emerald-50"
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      换一个
+                    </span>
+                  </FormSubmitButton>
+                </form>
+              ) : null}
             </div>
 
-            <form action={switchAction}>
-              <input type="hidden" name="taskId" value={reminder.taskId} />
-              <input
-                type="hidden"
-                name="scheduledForIso"
-                value={reminder.scheduledForIso}
-              />
-              <input
-                type="hidden"
-                name="recommendationId"
-                value={currentRecommendation.recommendationId}
-              />
-              <FormSubmitButton
-                pendingText="切换中..."
-                className="shrink-0 border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600 hover:border-emerald-200 hover:bg-emerald-50"
+            {switchState.status !== "idle" ? (
+              <div
+                aria-live="polite"
+                className={cn(
+                  "mt-3 rounded-2xl px-3 py-2 text-xs leading-6",
+                  switchState.status === "success"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : switchState.status === "exhausted"
+                      ? "bg-amber-50 text-amber-700"
+                      : "bg-zinc-100 text-zinc-600",
+                )}
               >
-                <span className="inline-flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  换一个
-                </span>
-              </FormSubmitButton>
-            </form>
-          </div>
+                {switchState.message}
+              </div>
+            ) : null}
 
-          {switchState.status !== "idle" ? (
-            <div
-              aria-live="polite"
-              className={cn(
-                "mt-3 rounded-2xl px-3 py-2 text-xs leading-6",
-                switchState.status === "success"
-                  ? "bg-emerald-50 text-emerald-700"
-                  : switchState.status === "exhausted"
-                    ? "bg-amber-50 text-amber-700"
-                    : "bg-zinc-100 text-zinc-600",
-              )}
-            >
-              {switchState.message}
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+              <span className="rounded-full bg-white px-2.5 py-1">
+                {currentRecommendation.canDoNow ? "现在可以先做" : "先做前置动作"}
+              </span>
+              <span className="rounded-full bg-white px-2.5 py-1">
+                阻力{" "}
+                {frictionLabelMap[currentRecommendation.frictionSource] ??
+                  currentRecommendation.frictionSource}
+              </span>
+              <span className="rounded-full bg-white px-2.5 py-1">
+                拆解{" "}
+                {decompositionLabelMap[currentRecommendation.decompositionType] ??
+                  currentRecommendation.decompositionType}
+              </span>
+              <span className="rounded-full bg-white px-2.5 py-1">
+                {reminder.reminderStyleLabel}
+              </span>
             </div>
-          ) : null}
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-            <span className="rounded-full bg-white px-2.5 py-1">
-              {currentRecommendation.canDoNow ? "现在可以先做" : "先做前置动作"}
-            </span>
-            <span className="rounded-full bg-white px-2.5 py-1">
-              阻力{" "}
-              {frictionLabelMap[currentRecommendation.frictionSource] ??
-                currentRecommendation.frictionSource}
-            </span>
-            <span className="rounded-full bg-white px-2.5 py-1">
-              拆解{" "}
-              {decompositionLabelMap[currentRecommendation.decompositionType] ??
-                currentRecommendation.decompositionType}
-            </span>
-            <span className="rounded-full bg-white px-2.5 py-1">
-              {reminder.reminderStyleLabel}
-            </span>
-          </div>
+            <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <dt className="text-zinc-500">为什么先做这一步</dt>
+                <dd className="mt-1 font-medium text-zinc-900">
+                  {currentRecommendation.recommendationWhy ||
+                    "先把启动门槛降下来，再继续往下做。"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500">截止时间</dt>
+                <dd className="mt-1 font-medium text-zinc-900">
+                  {reminder.dueAtLabel ?? "未设置"}
+                </dd>
+              </div>
+            </dl>
 
-          <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <dt className="text-zinc-500">为什么先做这一步</dt>
-              <dd className="mt-1 font-medium text-zinc-900">
-                {currentRecommendation.recommendationWhy || "先把启动门槛降下来，再继续往下做。"}
-              </dd>
+            <div className="mt-3 text-xs text-zinc-500">
+              {currentRecommendation.isSmallerThanOriginal
+                ? "这一步已经比原任务更小，更适合先开始。"
+                : "当前建议还不够小。"}
             </div>
-            <div>
-              <dt className="text-zinc-500">截止时间</dt>
-              <dd className="mt-1 font-medium text-zinc-900">
-                {reminder.dueAtLabel ?? "未设置"}
-              </dd>
-            </div>
-          </dl>
-
-          <div className="mt-3 text-xs text-zinc-500">
-            {currentRecommendation.isSmallerThanOriginal
-              ? "这一步已经比原任务更小，更适合先开始。"
-              : "当前建议还不够小。"}
-          </div>
-        </section>
+          </section>
+        ) : null}
 
         <div className="grid gap-3">
           <form action={respondToReminderAction}>
@@ -243,7 +268,7 @@ function ReminderCard({
             <input
               type="hidden"
               name="recommendationId"
-              value={currentRecommendation.recommendationId}
+              value={currentRecommendationId}
             />
             <FormSubmitButton
               pendingText="记录中..."
@@ -276,7 +301,7 @@ function ReminderCard({
             <input
               type="hidden"
               name="recommendationId"
-              value={currentRecommendation.recommendationId}
+              value={currentRecommendationId}
             />
             <label
               htmlFor={`delay-${reminder.taskId}`}
@@ -320,7 +345,7 @@ function ReminderCard({
             <input
               type="hidden"
               name="recommendationId"
-              value={currentRecommendation.recommendationId}
+              value={currentRecommendationId}
             />
             <FormSubmitButton
               pendingText="记录中..."
@@ -328,7 +353,7 @@ function ReminderCard({
             >
               <span className="inline-flex items-center gap-2">
                 <MoonStar className="h-4 w-4" />
-                今天先放一下
+                今天先放一放
               </span>
             </FormSubmitButton>
           </form>
