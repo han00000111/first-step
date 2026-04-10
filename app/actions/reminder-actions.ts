@@ -6,6 +6,7 @@ import {
   markRemindersAsSent,
   regenerateReminderFirstStep,
   respondToReminder,
+  type ReminderRecommendationActionState,
 } from "@/lib/reminder-service";
 
 type ReminderSentPayload = {
@@ -39,7 +40,10 @@ export async function markRemindersAsSentAction(reminders: ReminderSentPayload[]
   await markRemindersAsSent(reminders);
 }
 
-export async function regenerateReminderFirstStepAction(formData: FormData) {
+export async function regenerateReminderFirstStepAction(
+  prevState: ReminderRecommendationActionState,
+  formData: FormData,
+): Promise<ReminderRecommendationActionState> {
   const taskId = String(formData.get("taskId") ?? "");
   const scheduledForIso = String(formData.get("scheduledForIso") ?? "");
   const previousRecommendationId = String(
@@ -47,7 +51,11 @@ export async function regenerateReminderFirstStepAction(formData: FormData) {
   );
 
   if (!taskId || !scheduledForIso) {
-    return;
+    return {
+      status: "error",
+      message: "这次没有拿到可切换的提醒信息。",
+      recommendation: prevState.recommendation,
+    };
   }
 
   logReminderActionDebug("entered regenerateReminderFirstStepAction", {
@@ -57,7 +65,7 @@ export async function regenerateReminderFirstStepAction(formData: FormData) {
   });
 
   try {
-    await regenerateReminderFirstStep({
+    return await regenerateReminderFirstStep({
       taskId,
       scheduledForIso,
       previousRecommendationId: previousRecommendationId || null,
@@ -69,8 +77,12 @@ export async function regenerateReminderFirstStepAction(formData: FormData) {
       previousRecommendationId: previousRecommendationId || null,
       error: error instanceof Error ? error.message : "unknown error",
     });
-  } finally {
-    revalidateReminderSurfaces();
+
+    return {
+      status: "error",
+      message: "这次没换出新的建议，先保留当前这条。",
+      recommendation: prevState.recommendation,
+    };
   }
 }
 

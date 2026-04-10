@@ -70,6 +70,24 @@ export type DueReminderItem = {
   recommendationSource: "llm" | "rule_fallback";
 };
 
+export type ReminderRecommendationViewModel = {
+  recommendationId: string;
+  canDoNow: boolean;
+  frictionSource: string;
+  decompositionType: string;
+  recommendedFirstStep: string;
+  recommendationWhy: string;
+  isSmallerThanOriginal: boolean;
+  recommendationConfidence: number;
+  recommendationSource: "llm" | "rule_fallback";
+};
+
+export type ReminderRecommendationActionState = {
+  status: "idle" | "success" | "exhausted" | "error";
+  message: string;
+  recommendation: ReminderRecommendationViewModel | null;
+};
+
 function formatReminderTime(value: Date) {
   return format(value, "MM月d日 HH:mm", {
     locale: zhCN,
@@ -223,6 +241,22 @@ async function getLatestRecommendationView(
     confidence: existing.confidence,
     source: existing.source,
     modelName: existing.modelName,
+  };
+}
+
+function toReminderRecommendationViewModel(
+  recommendation: FirstStepRecommendationView,
+): ReminderRecommendationViewModel {
+  return {
+    recommendationId: recommendation.recommendationId,
+    canDoNow: recommendation.canDoNow,
+    frictionSource: recommendation.frictionSource,
+    decompositionType: recommendation.decompositionType,
+    recommendedFirstStep: recommendation.recommendedFirstStep,
+    recommendationWhy: recommendation.whyThisStep,
+    isSmallerThanOriginal: recommendation.isSmallerThanOriginal,
+    recommendationConfidence: recommendation.confidence,
+    recommendationSource: recommendation.source,
   };
 }
 
@@ -530,7 +564,7 @@ export async function regenerateReminderFirstStep(input: {
   taskId: string;
   scheduledForIso: string;
   previousRecommendationId?: string | null;
-}) {
+}): Promise<ReminderRecommendationActionState> {
   const scheduledFor = toScheduledForDate(input.scheduledForIso);
   const task = await prisma.task.findUnique({
     where: {
@@ -564,7 +598,11 @@ export async function regenerateReminderFirstStep(input: {
   });
 
   if (!task) {
-    return null;
+    return {
+      status: "error",
+      message: "当前任务不存在，先保留原来的建议。",
+      recommendation: null,
+    };
   }
 
   const delayCount = await prisma.reminderEvent.count({
@@ -600,14 +638,41 @@ export async function regenerateReminderFirstStep(input: {
       input.previousRecommendationId,
     );
 
-    logReminderServiceDebug("regenerateReminderFirstStep succeeded", {
+    if (
+      regeneratedRecommendation.status === "success" &&
+      regeneratedRecommendation.recommendation
+    ) {
+      logReminderServiceDebug("regenerateReminderFirstStep succeeded", {
+        taskId: task.id,
+        scheduledForIso: input.scheduledForIso,
+        recommendationId: regeneratedRecommendation.recommendation.recommendationId,
+        source: regeneratedRecommendation.recommendation.source,
+      });
+
+      return {
+        status: "success",
+        message: regeneratedRecommendation.message,
+        recommendation: toReminderRecommendationViewModel(
+          regeneratedRecommendation.recommendation,
+        ),
+      };
+    }
+
+    logReminderServiceDebug("regenerateReminderFirstStep exhausted", {
       taskId: task.id,
       scheduledForIso: input.scheduledForIso,
-      recommendationId: regeneratedRecommendation.recommendationId,
-      source: regeneratedRecommendation.source,
+      previousRecommendationId: input.previousRecommendationId ?? null,
     });
 
-    return regeneratedRecommendation;
+    return {
+      status: "exhausted",
+      message: regeneratedRecommendation.message,
+      recommendation: existingRecommendation
+        ? toReminderRecommendationViewModel(existingRecommendation)
+        : toReminderRecommendationViewModel(
+            buildFallbackFirstStepRecommendationView(recommendationContext),
+          ),
+    };
   } catch (error) {
     logReminderServiceDebug("regenerateReminderFirstStep fell back", {
       taskId: task.id,
@@ -618,10 +683,20 @@ export async function regenerateReminderFirstStep(input: {
     });
 
     if (existingRecommendation) {
-      return existingRecommendation;
+      return {
+        status: "error",
+        message: "这次没换出新的建议，先保留当前这条。",
+        recommendation: toReminderRecommendationViewModel(existingRecommendation),
+      };
     }
 
-    return buildFallbackFirstStepRecommendationView(recommendationContext);
+    return {
+      status: "error",
+      message: "这次没换出新的建议，先给你一条规则版建议。",
+      recommendation: toReminderRecommendationViewModel(
+        buildFallbackFirstStepRecommendationView(recommendationContext),
+      ),
+    };
   }
 }
 

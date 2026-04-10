@@ -24,6 +24,10 @@ type RuleDecision = FirstStepRecommendationOutput & {
   taskType: FirstStepTaskType;
 };
 
+type RuleDecisionCandidate = RuleDecision & {
+  candidateKey: string;
+};
+
 type ModelResult = {
   modelName: string | null;
   output: FirstStepModelExpressionOutput | null;
@@ -69,6 +73,19 @@ type RecommendationRecord = {
   confidence: number;
   source: FirstStepRecommendationSource;
   modelName: string | null;
+};
+
+type RecommendationHistoryRecord = {
+  id: string;
+  recommendedFirstStep: string;
+  decompositionType: string;
+  createdAt: Date;
+};
+
+export type RegenerateFirstStepRecommendationResult = {
+  status: "success" | "exhausted";
+  recommendation: FirstStepRecommendationView | null;
+  message: string;
 };
 
 const MODEL_REQUEST_TIMEOUT_MS = 5000;
@@ -159,6 +176,35 @@ function similarityScore(left: string, right: string) {
   }
 
   return overlap / Math.max(leftBigrams.size, rightBigrams.size);
+}
+
+function areStepsNearDuplicate(left: string, right: string) {
+  const normalizedLeft = normalizeText(stripCommonLead(left));
+  const normalizedRight = normalizeText(stripCommonLead(right));
+
+  if (!normalizedLeft || !normalizedRight) {
+    return false;
+  }
+
+  if (normalizedLeft === normalizedRight) {
+    return true;
+  }
+
+  return similarityScore(normalizedLeft, normalizedRight) >= 0.62;
+}
+
+function pushUniqueStep(target: string[], value: string) {
+  const normalizedValue = value.trim();
+
+  if (!normalizedValue) {
+    return;
+  }
+
+  if (target.some((item) => areStepsNearDuplicate(item, normalizedValue))) {
+    return;
+  }
+
+  target.push(normalizedValue);
 }
 
 function looksLikeMultiStep(text: string) {
@@ -662,7 +708,478 @@ function buildDecisionStep(context: FirstStepRecommendationContext) {
   return "先只留下两个候选";
 }
 
-function buildRuleDecision(
+function buildCommunicationStepVariants(
+  context: FirstStepRecommendationContext,
+  decompositionType: FirstStepDecompositionType,
+) {
+  const steps: string[] = [];
+  pushUniqueStep(steps, buildCommunicationStep(context, decompositionType));
+
+  if (/打电话/.test(context.taskText)) {
+    if (decompositionType === "open_entry") {
+      pushUniqueStep(steps, "先把联系人页面和拨号界面打开");
+      pushUniqueStep(steps, "先把要打的号码调出来停在眼前");
+    } else if (decompositionType === "confirm_information") {
+      pushUniqueStep(steps, "先确认对方明天方便接电话的大概时间");
+      pushUniqueStep(steps, "先把这通电话最需要确认的一点写下来");
+    } else if (decompositionType === "lower_psychological_barrier") {
+      pushUniqueStep(steps, "先在备忘录里写一句开场白");
+      pushUniqueStep(steps, "先只写下这通电话要说的两个关键词");
+    } else if (decompositionType === "prepare_material") {
+      pushUniqueStep(steps, "先把要提到的资料放到手边");
+      pushUniqueStep(steps, "先把对方号码和要点放到同一个地方");
+    } else if (decompositionType === "alternative_scene") {
+      pushUniqueStep(steps, "先把号码和要点记到待会一眼能看到的地方");
+      pushUniqueStep(steps, "先把这通电话放到明天打开手机就能看到的位置");
+    } else {
+      pushUniqueStep(steps, "先只写第一句准备怎么开口");
+      pushUniqueStep(steps, "先列一个这通电话最关键的问题");
+    }
+
+    return steps;
+  }
+
+  if (/HR/.test(context.taskText) && /(消息|回复|回信)/.test(context.taskText)) {
+    if (decompositionType === "open_entry") {
+      pushUniqueStep(steps, "先把和 HR 的对话框切出来");
+      pushUniqueStep(steps, "先看一眼上一条 HR 消息");
+    } else if (decompositionType === "confirm_information") {
+      pushUniqueStep(steps, "先圈出这条消息里最需要回应的一点");
+      pushUniqueStep(steps, "先确认 HR 这次最在意的问题是什么");
+    } else if (decompositionType === "prepare_material") {
+      pushUniqueStep(steps, "先把岗位链接或附件打开在旁边");
+      pushUniqueStep(steps, "先把回复里可能要提到的文件放到手边");
+    } else if (decompositionType === "lower_psychological_barrier") {
+      pushUniqueStep(steps, "先只写称呼和开头一句");
+      pushUniqueStep(steps, "先把最想回的一句话打出来");
+    } else if (decompositionType === "alternative_scene") {
+      pushUniqueStep(steps, "先把要回的关键词记到备忘录里");
+      pushUniqueStep(steps, "先把这段对话标成待回复放到最前面");
+    } else {
+      pushUniqueStep(steps, "先只写一句确认已收到");
+      pushUniqueStep(steps, "先把第一句回复打出来");
+    }
+
+    return steps;
+  }
+
+  if (/邮件/.test(context.taskText)) {
+    if (decompositionType === "open_entry") {
+      pushUniqueStep(steps, "先把邮件草稿打开");
+      pushUniqueStep(steps, "先把收件人和主题行露出来");
+    } else if (decompositionType === "confirm_information") {
+      pushUniqueStep(steps, "先确认这封邮件最需要说清的一点");
+      pushUniqueStep(steps, "先圈出这封邮件必须回复的那一句");
+    } else if (decompositionType === "prepare_material") {
+      pushUniqueStep(steps, "先把要附上的文件放到旁边");
+      pushUniqueStep(steps, "先把要引用的链接复制出来备用");
+    } else if (decompositionType === "lower_psychological_barrier") {
+      pushUniqueStep(steps, "先只写称呼和第一句");
+      pushUniqueStep(steps, "先只补一个主题行");
+    } else if (decompositionType === "alternative_scene") {
+      pushUniqueStep(steps, "先把要发的关键词记在备忘录里");
+      pushUniqueStep(steps, "先把这封邮件标成下一次打开邮箱先处理");
+    } else {
+      pushUniqueStep(steps, "先写一句邮件开头");
+      pushUniqueStep(steps, "先只补一行最核心的信息");
+    }
+  }
+
+  return steps;
+}
+
+function buildSubmitStepVariants(
+  context: FirstStepRecommendationContext,
+  decompositionType: FirstStepDecompositionType,
+) {
+  const steps: string[] = [];
+  pushUniqueStep(steps, buildSubmitStep(context, decompositionType));
+
+  if (/作品集/.test(context.taskText) && /HR/.test(context.taskText)) {
+    if (decompositionType === "prepare_material") {
+      pushUniqueStep(steps, "先把作品集链接复制出来备用");
+      pushUniqueStep(steps, "先确认作品集链接能正常打开");
+    } else if (decompositionType === "open_entry") {
+      pushUniqueStep(steps, "先把邮件或聊天输入框打开");
+      pushUniqueStep(steps, "先把发送入口停在输入框位置");
+    } else if (decompositionType === "confirm_information") {
+      pushUniqueStep(steps, "先确认收件人和称呼");
+      pushUniqueStep(steps, "先确认这次发作品集要附哪一句说明");
+    } else if (decompositionType === "lower_psychological_barrier") {
+      pushUniqueStep(steps, "先只写标题和第一句");
+      pushUniqueStep(steps, "先把链接贴进去，不急着一次写完");
+    } else {
+      pushUniqueStep(steps, "先写一句发送开头");
+      pushUniqueStep(steps, "先把链接先贴进去");
+    }
+
+    return steps;
+  }
+
+  if (/简历/.test(context.taskText)) {
+    if (decompositionType === "prepare_material") {
+      pushUniqueStep(steps, "先确认这次要发的简历版本");
+      pushUniqueStep(steps, "先把简历文件放到桌面或同一个窗口里");
+    } else if (decompositionType === "open_entry") {
+      pushUniqueStep(steps, "先把投递页打开到上传位置");
+      pushUniqueStep(steps, "先把岗位投递入口打开");
+    } else if (decompositionType === "confirm_information") {
+      pushUniqueStep(steps, "先确认岗位名称和投递入口没错");
+      pushUniqueStep(steps, "先看一眼这次投递是否还缺附件");
+    } else if (decompositionType === "lower_psychological_barrier") {
+      pushUniqueStep(steps, "先只处理上传简历这一项");
+      pushUniqueStep(steps, "先只填一个必填项");
+    } else {
+      pushUniqueStep(steps, "先只上传简历文件");
+      pushUniqueStep(steps, "先只填最上面的一个字段");
+    }
+  }
+
+  return steps;
+}
+
+function buildEditStepVariants(
+  context: FirstStepRecommendationContext,
+  decompositionType: FirstStepDecompositionType,
+) {
+  const steps: string[] = [];
+  pushUniqueStep(steps, buildEditStep(context, decompositionType));
+
+  if (/简历/.test(context.taskText) && /第一段/.test(context.taskText)) {
+    if (decompositionType === "open_entry") {
+      pushUniqueStep(steps, "先把简历文件打开并停在第一段");
+      pushUniqueStep(steps, "先把文档定位到第一段第一句");
+    } else if (decompositionType === "confirm_information") {
+      pushUniqueStep(steps, "先确定第一段最想突出的一点");
+      pushUniqueStep(steps, "先确认第一段最需要改掉的那一句");
+    } else if (decompositionType === "prepare_material") {
+      pushUniqueStep(steps, "先把原稿和参考版本并排打开");
+      pushUniqueStep(steps, "先把目标岗位 JD 打开在旁边");
+    } else if (decompositionType === "lower_psychological_barrier") {
+      pushUniqueStep(steps, "先把要改的那句标出来");
+      pushUniqueStep(steps, "先只删掉第一段里一个多余词");
+    } else if (decompositionType === "alternative_scene") {
+      pushUniqueStep(steps, "先把第一段复制到备忘录里看一眼");
+      pushUniqueStep(steps, "先把第一段里最想改的一句单独记下来");
+    } else {
+      pushUniqueStep(steps, "先只改第一段的第一句");
+      pushUniqueStep(steps, "先改掉第一段里最别扭的一句话");
+    }
+
+    return steps;
+  }
+
+  if (decompositionType === "open_entry") {
+    pushUniqueStep(steps, "先把文档切到要改的位置");
+  } else if (decompositionType === "confirm_information") {
+    pushUniqueStep(steps, "先确认这一段最想表达的重点");
+    pushUniqueStep(steps, "先找出最需要改的那一句");
+  } else if (decompositionType === "prepare_material") {
+    pushUniqueStep(steps, "先把原稿和参考内容放到同一屏里");
+    pushUniqueStep(steps, "先把需要对照的材料打开在旁边");
+  } else if (decompositionType === "lower_psychological_barrier") {
+    pushUniqueStep(steps, "先只标出一处最别扭的句子");
+    pushUniqueStep(steps, "先只删一个明显多余的词");
+  } else if (decompositionType === "alternative_scene") {
+    pushUniqueStep(steps, "先把要改的那一段复制到便签里");
+    pushUniqueStep(steps, "先记下一句你最想先动的句子");
+  } else {
+    pushUniqueStep(steps, "先只改一处最明显的表达");
+    pushUniqueStep(steps, "先只改一小句");
+  }
+
+  return steps;
+}
+
+function buildConfirmStepVariants(
+  context: FirstStepRecommendationContext,
+  decompositionType: FirstStepDecompositionType,
+) {
+  const steps: string[] = [];
+  pushUniqueStep(steps, buildConfirmStep(context));
+
+  if (decompositionType === "open_entry") {
+    pushUniqueStep(steps, "先把地图或搜索页面打开");
+    pushUniqueStep(steps, "先把查询入口打开停在搜索框");
+  } else if (decompositionType === "prepare_material") {
+    pushUniqueStep(steps, "先把地址或名称复制出来备用");
+    pushUniqueStep(steps, "先把要查的关键词整理成一行");
+  } else if (decompositionType === "lower_psychological_barrier") {
+    pushUniqueStep(steps, "先只确认最关键的一条信息");
+    pushUniqueStep(steps, "先只查一个最影响后续的问题");
+  } else if (decompositionType === "minimum_execute") {
+    pushUniqueStep(steps, "先搜一个最关键的关键词");
+    pushUniqueStep(steps, "先只查最需要确定的那一项");
+  }
+
+  return steps;
+}
+
+function buildOfflineStepVariants(
+  context: FirstStepRecommendationContext,
+  decompositionType: FirstStepDecompositionType,
+) {
+  const steps: string[] = [];
+  pushUniqueStep(steps, buildOfflineStep(context, decompositionType));
+
+  if (/打印/.test(context.taskText)) {
+    if (decompositionType === "prepare_material") {
+      pushUniqueStep(steps, "先把要打印的文件集中到一个文件夹");
+      pushUniqueStep(steps, "先把最需要打印的那份文件单独放好");
+    } else if (decompositionType === "confirm_information") {
+      pushUniqueStep(steps, "先确认附近哪家店现在能打印");
+      pushUniqueStep(steps, "先查一下最近打印点的营业时间");
+    } else if (decompositionType === "alternative_scene") {
+      pushUniqueStep(steps, "先把打印店地址存到地图里");
+      pushUniqueStep(steps, "先把文件名和打印需求记成一行");
+    } else if (decompositionType === "lower_psychological_barrier") {
+      pushUniqueStep(steps, "先只准备最需要打印的一份");
+      pushUniqueStep(steps, "先只检查一份文件是否能正常打开");
+    } else {
+      pushUniqueStep(steps, "先把最关键的一份文件单独找出来");
+      pushUniqueStep(steps, "先只确认一份文件已经准备好");
+    }
+
+    return steps;
+  }
+
+  if (decompositionType === "prepare_material") {
+    pushUniqueStep(steps, "先把要带的材料集中到一起");
+    pushUniqueStep(steps, "先把最关键的一样材料放到包旁边");
+  } else if (decompositionType === "confirm_information") {
+    pushUniqueStep(steps, "先确认营业时间或办理地址");
+    pushUniqueStep(steps, "先看一眼今天去办是否需要预约");
+  } else if (decompositionType === "alternative_scene") {
+    pushUniqueStep(steps, "先把路线或地址存到地图里");
+    pushUniqueStep(steps, "先把出门前要做的事写成一行");
+  } else if (decompositionType === "lower_psychological_barrier") {
+    pushUniqueStep(steps, "先只准备一样最关键的材料");
+    pushUniqueStep(steps, "先只确认一件必须带的东西");
+  } else {
+    pushUniqueStep(steps, "先写下一样出门前一定要带的东西");
+    pushUniqueStep(steps, "先把最关键的一份材料单独放好");
+  }
+
+  return steps;
+}
+
+function buildOrganizeStepVariants(
+  context: FirstStepRecommendationContext,
+  decompositionType: FirstStepDecompositionType,
+) {
+  const steps: string[] = [];
+  pushUniqueStep(steps, buildOrganizeStep(context));
+
+  if (decompositionType === "open_entry") {
+    pushUniqueStep(steps, "先拿一个空袋子或临时收纳盒放在旁边");
+    pushUniqueStep(steps, "先只空出一小块可以放东西的位置");
+  } else if (decompositionType === "lower_psychological_barrier") {
+    pushUniqueStep(steps, "先只整理眼前这一小堆");
+    pushUniqueStep(steps, "先给自己两分钟只收最显眼的东西");
+  } else {
+    pushUniqueStep(steps, "先只把最显眼的三样东西归到一起");
+    pushUniqueStep(steps, "先只清出一小块可用位置");
+  }
+
+  return steps;
+}
+
+function buildDecisionStepVariants(
+  context: FirstStepRecommendationContext,
+  decompositionType: FirstStepDecompositionType,
+) {
+  const steps: string[] = [];
+  pushUniqueStep(steps, buildDecisionStep(context));
+
+  if (decompositionType === "open_entry") {
+    pushUniqueStep(steps, "先把两个候选放到同一屏里");
+    pushUniqueStep(steps, "先把最常犹豫的两个选项列出来");
+  } else if (decompositionType === "confirm_information") {
+    pushUniqueStep(steps, "先补查一个最影响选择的信息");
+    pushUniqueStep(steps, "先确认最关键的一个判断条件");
+  } else if (decompositionType === "lower_psychological_barrier") {
+    pushUniqueStep(steps, "先只划掉一个明显不合适的选项");
+    pushUniqueStep(steps, "先只做排除，不急着现在定下来");
+  } else {
+    pushUniqueStep(steps, "先删掉一个最不想选的选项");
+    pushUniqueStep(steps, "先只留下两个候选");
+  }
+
+  return steps;
+}
+
+function buildStepVariantsForTaskType(
+  context: FirstStepRecommendationContext,
+  taskType: FirstStepTaskType,
+  decompositionType: FirstStepDecompositionType,
+) {
+  if (taskType === "communication") {
+    return buildCommunicationStepVariants(context, decompositionType);
+  }
+
+  if (taskType === "submit_send") {
+    return buildSubmitStepVariants(context, decompositionType);
+  }
+
+  if (taskType === "edit_create") {
+    return buildEditStepVariants(context, decompositionType);
+  }
+
+  if (taskType === "confirm_lookup") {
+    return buildConfirmStepVariants(context, decompositionType);
+  }
+
+  if (taskType === "offline_execute") {
+    return buildOfflineStepVariants(context, decompositionType);
+  }
+
+  if (taskType === "organize_household") {
+    return buildOrganizeStepVariants(context, decompositionType);
+  }
+
+  return buildDecisionStepVariants(context, decompositionType);
+}
+
+function getCandidateDecompositionOrder(
+  taskType: FirstStepTaskType,
+  primaryDecompositionType: FirstStepDecompositionType,
+  usedDecompositionTypes: Set<string>,
+) {
+  const baseOrder =
+    taskType === "communication"
+      ? [
+          primaryDecompositionType,
+          "open_entry",
+          "minimum_execute",
+          "lower_psychological_barrier",
+          "confirm_information",
+          "prepare_material",
+          "alternative_scene",
+        ]
+      : taskType === "submit_send"
+        ? [
+            primaryDecompositionType,
+            "prepare_material",
+            "open_entry",
+            "minimum_execute",
+            "confirm_information",
+            "lower_psychological_barrier",
+            "alternative_scene",
+          ]
+        : taskType === "edit_create"
+          ? [
+              primaryDecompositionType,
+              "open_entry",
+              "minimum_execute",
+              "confirm_information",
+              "lower_psychological_barrier",
+              "prepare_material",
+              "alternative_scene",
+            ]
+          : taskType === "confirm_lookup"
+            ? [
+                primaryDecompositionType,
+                "confirm_information",
+                "open_entry",
+                "minimum_execute",
+                "lower_psychological_barrier",
+                "prepare_material",
+              ]
+            : taskType === "offline_execute"
+              ? [
+                  primaryDecompositionType,
+                  "prepare_material",
+                  "confirm_information",
+                  "alternative_scene",
+                  "minimum_execute",
+                  "lower_psychological_barrier",
+                ]
+              : taskType === "organize_household"
+                ? [
+                    primaryDecompositionType,
+                    "minimum_execute",
+                    "lower_psychological_barrier",
+                    "open_entry",
+                  ]
+                : [
+                    primaryDecompositionType,
+                    "confirm_information",
+                    "minimum_execute",
+                    "lower_psychological_barrier",
+                    "open_entry",
+                  ];
+
+  const uniqueOrder = Array.from(new Set(baseOrder));
+
+  return [
+    ...uniqueOrder.filter((item) => !usedDecompositionTypes.has(item)),
+    ...uniqueOrder.filter((item) => usedDecompositionTypes.has(item)),
+  ] as FirstStepDecompositionType[];
+}
+
+function deriveCandidateFrictionSource(
+  primaryFrictionSource: FirstStepFrictionSource,
+  decompositionType: FirstStepDecompositionType,
+): FirstStepFrictionSource {
+  if (decompositionType === "open_entry") {
+    return "entry_not_open";
+  }
+
+  if (decompositionType === "prepare_material") {
+    return "missing_material";
+  }
+
+  if (decompositionType === "confirm_information") {
+    return "missing_information";
+  }
+
+  if (decompositionType === "alternative_scene") {
+    return primaryFrictionSource === "current_time_unsuitable"
+      ? "current_time_unsuitable"
+      : "current_scene_unsuitable";
+  }
+
+  if (decompositionType === "lower_psychological_barrier") {
+    return primaryFrictionSource === "repeated_delay"
+      ? "repeated_delay"
+      : "psychological_barrier";
+  }
+
+  return primaryFrictionSource === "repeated_delay"
+    ? "repeated_delay"
+    : "task_too_large";
+}
+
+function buildCandidateDecision(
+  context: FirstStepRecommendationContext,
+  taskType: FirstStepTaskType,
+  primaryFrictionSource: FirstStepFrictionSource,
+  decompositionType: FirstStepDecompositionType,
+  step: string,
+  candidateKey: string,
+): RuleDecisionCandidate {
+  const frictionSource = deriveCandidateFrictionSource(
+    primaryFrictionSource,
+    decompositionType,
+  );
+
+  return {
+    candidateKey,
+    taskType,
+    can_do_now: true,
+    friction_source: frictionSource,
+    decomposition_type: decompositionType,
+    recommended_first_step: step,
+    why_this_step: buildWhyThisStep(frictionSource, decompositionType),
+    is_smaller_than_original: true,
+    confidence:
+      decompositionType === deriveDecompositionType(primaryFrictionSource)
+        ? 0.72
+        : 0.64,
+  };
+}
+
+function buildPrimaryRuleDecision(
   context: FirstStepRecommendationContext,
 ): RuleDecision {
   const taskType = classifyTaskType(context.taskText);
@@ -695,6 +1212,89 @@ function buildRuleDecision(
     is_smaller_than_original: true,
     confidence: canDoNow ? 0.72 : 0.66,
   };
+}
+
+function buildRuleCandidatePool(
+  context: FirstStepRecommendationContext,
+  options?: {
+    excludedTexts?: string[];
+    usedDecompositionTypes?: Set<string>;
+  },
+): RuleDecisionCandidate[] {
+  const primaryDecision = buildPrimaryRuleDecision(context);
+  const excludedTexts = options?.excludedTexts ?? [];
+  const usedDecompositionTypes =
+    options?.usedDecompositionTypes ?? new Set<string>();
+  const decompositionOrder = getCandidateDecompositionOrder(
+    primaryDecision.taskType,
+    primaryDecision.decomposition_type,
+    usedDecompositionTypes,
+  );
+  const candidates: RuleDecisionCandidate[] = [];
+
+  for (const decompositionType of decompositionOrder) {
+    const stepVariants = buildStepVariantsForTaskType(
+      context,
+      primaryDecision.taskType,
+      decompositionType,
+    );
+
+    stepVariants.forEach((step, index) => {
+      if (
+        excludedTexts.some((item) => areStepsNearDuplicate(item, step)) ||
+        candidates.some((item) =>
+          areStepsNearDuplicate(item.recommended_first_step, step),
+        )
+      ) {
+        return;
+      }
+
+      const candidate = buildCandidateDecision(
+        context,
+        primaryDecision.taskType,
+        primaryDecision.friction_source,
+        decompositionType,
+        step,
+        `${decompositionType}:${index}`,
+      );
+      const validationError = validateCandidateStep(
+        candidate.recommended_first_step,
+        context,
+        candidate,
+      );
+
+      if (validationError) {
+        return;
+      }
+
+      candidates.push(candidate);
+    });
+  }
+
+  logFirstStepDebug("built recommendation candidate pool", {
+    taskId: context.taskId,
+    scheduledFor: context.scheduledFor.toISOString(),
+    candidateCount: candidates.length,
+    excludedCount: excludedTexts.length,
+    usedDecompositionTypes: Array.from(usedDecompositionTypes),
+  });
+
+  if (candidates.length === 0) {
+    return [
+      {
+        ...primaryDecision,
+        candidateKey: "primary:0",
+      },
+    ];
+  }
+
+  return candidates;
+}
+
+function buildRuleDecision(
+  context: FirstStepRecommendationContext,
+): RuleDecision {
+  return buildRuleCandidatePool(context)[0] ?? buildPrimaryRuleDecision(context);
 }
 
 function buildRequestPayload(
@@ -1055,13 +1655,72 @@ async function callExpressionModel(
   }
 }
 
+async function getRecommendationHistoryForSlot(
+  db: DbClient,
+  context: FirstStepRecommendationContext,
+) {
+  return db.firstStepRecommendation.findMany({
+    where: {
+      taskId: context.taskId,
+      scheduledFor: context.scheduledFor,
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+    select: {
+      id: true,
+      recommendedFirstStep: true,
+      decompositionType: true,
+      createdAt: true,
+    },
+  }) as Promise<RecommendationHistoryRecord[]>;
+}
+
+function pickNextCandidate(
+  context: FirstStepRecommendationContext,
+  history: RecommendationHistoryRecord[],
+  previousRecommendationId?: string | null,
+) {
+  const usedTexts = history.map((item) => item.recommendedFirstStep);
+  const usedDecompositionTypes = new Set(
+    history.map((item) => item.decompositionType),
+  );
+  const previousRecommendation = history.find(
+    (item) => item.id === previousRecommendationId,
+  );
+  const excludedTexts = previousRecommendation
+    ? [...usedTexts, previousRecommendation.recommendedFirstStep]
+    : usedTexts;
+  const candidatePool = buildRuleCandidatePool(context, {
+    excludedTexts,
+    usedDecompositionTypes,
+  });
+  const nextCandidate =
+    candidatePool.find((candidate) =>
+      !usedTexts.some((item) =>
+        areStepsNearDuplicate(item, candidate.recommended_first_step),
+      ),
+    ) ?? null;
+
+  logFirstStepDebug("picked next candidate for regenerate", {
+    taskId: context.taskId,
+    scheduledFor: context.scheduledFor.toISOString(),
+    previousRecommendationId: previousRecommendationId ?? null,
+    historyCount: history.length,
+    candidatePoolSize: candidatePool.length,
+    nextCandidateKey: nextCandidate?.candidateKey ?? null,
+  });
+
+  return nextCandidate;
+}
+
 async function createRecommendation(
   db: DbClient,
   context: FirstStepRecommendationContext,
+  ruleDecision: RuleDecision,
   trigger: "initial" | "regenerate",
   previousRecommendationId?: string | null,
 ) {
-  const ruleDecision = buildRuleDecision(context);
   const requestPayload = buildRequestPayload(context, ruleDecision);
 
   let llmResult: ModelResult;
@@ -1202,19 +1861,53 @@ export async function getOrCreateFirstStepRecommendation(
     return mapRecommendationRecord(existing);
   }
 
-  return createRecommendation(prisma, context, "initial");
+  return createRecommendation(
+    prisma,
+    context,
+    buildRuleDecision(context),
+    "initial",
+  );
 }
 
 export async function regenerateFirstStepRecommendation(
   context: FirstStepRecommendationContext,
   previousRecommendationId?: string | null,
 ) {
-  return createRecommendation(
+  const history = await getRecommendationHistoryForSlot(prisma, context);
+  const nextCandidate = pickNextCandidate(
+    context,
+    history,
+    previousRecommendationId,
+  );
+
+  if (!nextCandidate) {
+    return {
+      status: "exhausted" as const,
+      recommendation: null,
+      message: "暂时没有更合适的替代建议",
+    };
+  }
+
+  const recommendation = await createRecommendation(
     prisma,
     context,
+    nextCandidate,
     "regenerate",
     previousRecommendationId,
   );
+
+  await markFirstStepRecommendationsShown([
+    {
+      recommendationId: recommendation.recommendationId,
+      taskId: context.taskId,
+    },
+  ]);
+
+  return {
+    status: "success" as const,
+    recommendation,
+    message: "已切换到另一个建议",
+  };
 }
 
 export async function markFirstStepRecommendationsShown(
