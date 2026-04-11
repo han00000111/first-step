@@ -227,7 +227,7 @@ function ReminderDelaySettings({
           onUnitChange={setDefaultDelayUnit}
         />
 
-        <div className="rounded-[18px] bg-emerald-50/80 px-4 py-3 text-sm text-emerald-900">
+        <div className="rounded-[18px] bg-[#eef3ef] px-4 py-3 text-sm text-[#5f766b]">
           默认将在 {formatReminderDelayLabel(defaultDelayValue, defaultDelayUnit)} 提醒
         </div>
 
@@ -315,18 +315,18 @@ function ReminderCard({
       className={cn(
         "rounded-[28px] border border-white/80 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdfb_100%)] p-5 shadow-[0_20px_56px_-32px_rgba(15,23,42,0.24)] transition sm:p-6",
         highlighted
-          ? "border-emerald-300 shadow-[0_24px_60px_-34px_rgba(16,185,129,0.42)] ring-2 ring-emerald-100"
+          ? "border-[#c8d5ce] shadow-[0_24px_60px_-34px_rgba(96,121,110,0.28)] ring-2 ring-[#e7eeea]"
           : "",
       )}
     >
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
           {highlighted ? (
-            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 font-medium text-emerald-900">
+            <span className="inline-flex items-center gap-2 rounded-full bg-[#edf3ef] px-3 py-1 font-medium text-[#5d7368]">
               来自通知
             </span>
           ) : null}
-          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-800">
+          <span className="inline-flex items-center gap-2 rounded-full bg-[#f1f5f2] px-3 py-1 font-medium text-[#60756b]">
             <BellRing className="h-3.5 w-3.5" />
             当前应提醒
           </span>
@@ -342,7 +342,7 @@ function ReminderCard({
           {reminder.content}
         </h2>
 
-        <div className="rounded-[24px] border border-emerald-100 bg-[linear-gradient(180deg,#f7fffb_0%,#ecfaf3_100%)] px-5 py-4 text-lg font-semibold leading-8 tracking-tight text-zinc-900">
+        <div className="rounded-[24px] border border-[#d9e3dc] bg-[linear-gradient(180deg,#fafcf9_0%,#f0f4f1_100%)] px-5 py-4 text-lg font-semibold leading-8 tracking-tight text-zinc-900">
           {reminder.messageShown}
         </div>
 
@@ -372,7 +372,7 @@ function ReminderCard({
                   />
                   <FormSubmitButton
                     pendingText="切换中..."
-                    className="shrink-0 border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600 hover:border-emerald-200 hover:bg-emerald-50"
+                    className="shrink-0 border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600 hover:border-[#d9e3dc] hover:bg-[#f1f5f2]"
                   >
                     <span className="inline-flex items-center gap-1.5">
                       <Sparkles className="h-3.5 w-3.5" />
@@ -389,9 +389,9 @@ function ReminderCard({
                 className={cn(
                   "mt-3 rounded-2xl px-3 py-2 text-xs leading-6",
                   switchState.status === "success"
-                    ? "bg-emerald-50 text-emerald-700"
+                    ? "bg-[#eef3ef] text-[#5f766b]"
                     : switchState.status === "exhausted"
-                      ? "bg-amber-50 text-amber-700"
+                      ? "bg-[#f4efe7] text-[#84705c]"
                       : "bg-zinc-100 text-zinc-600",
                 )}
               >
@@ -459,7 +459,7 @@ function ReminderCard({
             />
             <FormSubmitButton
               pendingText="记录中..."
-              className="w-full bg-emerald-600 px-4 py-3.5 text-white shadow-[0_14px_30px_-18px_rgba(16,185,129,0.8)] hover:bg-emerald-700"
+              className="w-full bg-[#60796e] px-4 py-3.5 text-white shadow-[0_14px_30px_-18px_rgba(96,121,110,0.52)] hover:bg-[#556d63]"
             >
               <span className="inline-flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4" />
@@ -503,7 +503,7 @@ function ReminderCard({
                   />
                   <FormSubmitButton
                     pendingText="稍等..."
-                    className="border border-zinc-200 bg-white px-4 py-3 text-zinc-700 hover:border-emerald-200 hover:bg-emerald-50"
+                    className="border border-zinc-200 bg-white px-4 py-3 text-zinc-700 hover:border-[#d9e3dc] hover:bg-[#f1f5f2]"
                   >
                     <span className="inline-flex items-center gap-2">
                       <Clock3 className="h-4 w-4" />
@@ -525,7 +525,7 @@ function ReminderCard({
             {isCustomDelayOpen ? (
               <form
                 action={respondToReminderAction}
-                className="mt-4 space-y-3 rounded-[20px] border border-emerald-100 bg-white/90 p-4"
+                className="mt-4 space-y-3 rounded-[20px] border border-[#d9e3dc] bg-white/90 p-4"
               >
                 <input type="hidden" name="taskId" value={reminder.taskId} />
                 <input type="hidden" name="responseType" value="remind_later" />
@@ -575,7 +575,7 @@ function ReminderCard({
                   </div>
                   <FormSubmitButton
                     pendingText="稍等..."
-                    className="bg-emerald-600 px-4 py-3 text-white hover:bg-emerald-700"
+                    className="bg-[#60796e] px-4 py-3 text-white hover:bg-[#556d63]"
                   >
                     按这个时间提醒
                   </FormSubmitButton>
@@ -600,7 +600,7 @@ function ReminderCard({
             />
             <FormSubmitButton
               pendingText="记录中..."
-              className="w-full border border-zinc-200 bg-white px-4 py-3 text-zinc-700 hover:border-amber-200 hover:bg-amber-50"
+              className="w-full border border-zinc-200 bg-white px-4 py-3 text-zinc-700 hover:border-[#e1d5c7] hover:bg-[#f4efe7]"
             >
               <span className="inline-flex items-center gap-2">
                 <MoonStar className="h-4 w-4" />

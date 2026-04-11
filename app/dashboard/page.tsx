@@ -30,7 +30,7 @@ function buildPieGradient(slices: PieSlice[]) {
   const total = slices.reduce((sum, slice) => sum + slice.value, 0);
 
   if (total === 0) {
-    return "conic-gradient(#e4e4e7 0deg 360deg)";
+    return "conic-gradient(#dadce3 0deg 360deg)";
   }
 
   let current = 0;
@@ -204,12 +204,12 @@ function DashboardContent({ metrics }: { metrics: DashboardMetricsData }) {
   ];
 
   const responseSlices: PieSlice[] = [
-    { key: "accept", label: "接受", value: metrics.acceptCount, color: "#10b981" },
-    { key: "delay", label: "延后", value: metrics.delayCount, color: "#f59e0b" },
-    { key: "reject", label: "拒绝", value: metrics.rejectCount, color: "#f43f5e" },
+    { key: "accept", label: "接受", value: metrics.acceptCount, color: "#99b3a4" },
+    { key: "delay", label: "延后", value: metrics.delayCount, color: "#ccb08a" },
+    { key: "reject", label: "拒绝", value: metrics.rejectCount, color: "#c5a1a1" },
   ];
 
-  const styleColors = ["#0ea5e9", "#10b981", "#f59e0b", "#6366f1"];
+  const styleColors = ["#a7bac5", "#99b3a4", "#ccb08a", "#b4adc8"];
   const styleSlices: PieSlice[] = metrics.styleRows.map((row, index) => ({
     key: row.key,
     label: row.label,
@@ -218,16 +218,16 @@ function DashboardContent({ metrics }: { metrics: DashboardMetricsData }) {
   }));
 
   const contextColorMap: Record<string, string> = {
-    mobile: "#0ea5e9",
-    pc: "#14b8a6",
-    offline: "#f59e0b",
-    unknown: "#a1a1aa",
+    mobile: "#a7bac5",
+    pc: "#9fb5ad",
+    offline: "#ccb08a",
+    unknown: "#b8b8c3",
   };
   const contextSlices: PieSlice[] = metrics.contextRows.map((row) => ({
     key: row.key,
     label: row.label,
     value: row.reminderCount,
-    color: contextColorMap[row.key] ?? "#a1a1aa",
+    color: contextColorMap[row.key] ?? "#b8b8c3",
   }));
 
   return (
@@ -259,7 +259,7 @@ function DashboardContent({ metrics }: { metrics: DashboardMetricsData }) {
         <div className="rounded-[24px] border border-zinc-200 bg-white p-5 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.16)] sm:p-6">
           <div className="text-lg font-semibold text-zinc-900">提醒风格对比</div>
           <p className="mt-2 text-sm leading-6 text-zinc-500">
-            图表看整体占比，表格继续保留具体提醒次数和接受、延后、拒绝率。
+            图表看整体占比，表格保留具体提醒次数和接受、延后、拒绝率。
           </p>
 
           <div className="mt-4">
@@ -298,7 +298,7 @@ function DashboardContent({ metrics }: { metrics: DashboardMetricsData }) {
         <div className="rounded-[24px] border border-zinc-200 bg-white p-5 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.16)] sm:p-6">
           <div className="text-lg font-semibold text-zinc-900">任务场景对比</div>
           <p className="mt-2 text-sm leading-6 text-zinc-500">
-            图表看整体占比，表格继续保留具体提醒次数和接受、延后、拒绝率。
+            图表看整体占比，表格保留具体提醒次数和接受、延后、拒绝率。
           </p>
 
           <div className="mt-4">

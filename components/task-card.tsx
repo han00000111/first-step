@@ -17,10 +17,10 @@ import { useUiStore } from "@/stores/ui-store";
 
 const statusToneClassName: Record<TaskListItem["statusTone"], string> = {
   neutral: "bg-zinc-100 text-zinc-700",
-  info: "bg-sky-50 text-sky-800",
-  success: "bg-emerald-50 text-emerald-800",
-  warning: "bg-amber-50 text-amber-800",
-  danger: "bg-rose-50 text-rose-800",
+  info: "bg-[#edf1f3] text-[#667884]",
+  success: "bg-[#eef3ef] text-[#5f766b]",
+  warning: "bg-[#f4efe7] text-[#84705c]",
+  danger: "bg-[#f4ecec] text-[#856767]",
 };
 
 type TaskCardProps = {
@@ -67,8 +67,8 @@ export function TaskCard({ task }: TaskCardProps) {
             {task.content}
           </h2>
 
-          <div className="rounded-[22px] border border-emerald-100 bg-[linear-gradient(180deg,#f8fffb_0%,#eef9f2_100%)] px-4 py-4">
-            <div className="text-xs font-medium uppercase tracking-[0.18em] text-emerald-700">
+          <div className="rounded-[22px] border border-[#d9e3dc] bg-[linear-gradient(180deg,#fafcf9_0%,#f0f4f1_100%)] px-4 py-4">
+            <div className="text-xs font-medium uppercase tracking-[0.18em] text-[#62786d]">
               推荐的第一步
             </div>
             <div className="mt-2 text-base font-medium leading-7 text-zinc-900">
@@ -118,7 +118,7 @@ export function TaskCard({ task }: TaskCardProps) {
               >
                 <FormSubmitButton
                   pendingText="处理中..."
-                  className="w-full bg-emerald-600 text-white shadow-[0_12px_30px_-20px_rgba(5,150,105,0.9)] hover:bg-emerald-700"
+                  className="w-full bg-[#60796e] text-white shadow-[0_12px_30px_-20px_rgba(96,121,110,0.55)] hover:bg-[#556d63]"
                 >
                   手动触发提醒
                 </FormSubmitButton>
@@ -152,7 +152,7 @@ export function TaskCard({ task }: TaskCardProps) {
             >
               <FormSubmitButton
                 pendingText="删除中..."
-                className="w-full border border-rose-200 bg-white text-rose-700 hover:border-rose-300 hover:bg-rose-50/80"
+                className="w-full border border-[#e1d3d3] bg-white text-[#856767] hover:border-[#d2bebe] hover:bg-[#f4ecec]"
               >
                 删除
               </FormSubmitButton>
@@ -164,7 +164,7 @@ export function TaskCard({ task }: TaskCardProps) {
       {isEditing ? (
         <form
           action={formAction}
-          className="mt-5 rounded-[24px] border border-amber-100 bg-amber-50/60 p-4 sm:p-5"
+          className="mt-5 rounded-[24px] border border-[#e5dccf] bg-[#f6f1ea] p-4 sm:p-5"
         >
           <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
@@ -172,10 +172,10 @@ export function TaskCard({ task }: TaskCardProps) {
               <textarea
                 name="content"
                 defaultValue={task.content}
-                className="mt-2 min-h-28 w-full resize-none rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm leading-6 text-zinc-900 outline-none transition focus:border-amber-300"
+                className="mt-2 min-h-28 w-full resize-none rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm leading-6 text-zinc-900 outline-none transition focus:border-[#d6c7b2]"
               />
               {state.fieldErrors?.content ? (
-                <p className="mt-2 text-sm text-rose-600">{state.fieldErrors.content}</p>
+                <p className="mt-2 text-sm text-[#8a6c6c]">{state.fieldErrors.content}</p>
               ) : null}
             </div>
 
@@ -185,10 +185,10 @@ export function TaskCard({ task }: TaskCardProps) {
                 name="dueAt"
                 type="datetime-local"
                 defaultValue={task.dueAtInputValue}
-                className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-amber-300"
+                className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-[#d6c7b2]"
               />
               {state.fieldErrors?.dueAt ? (
-                <p className="mt-2 text-sm text-rose-600">{state.fieldErrors.dueAt}</p>
+                <p className="mt-2 text-sm text-[#8a6c6c]">{state.fieldErrors.dueAt}</p>
               ) : null}
             </div>
 
@@ -197,7 +197,7 @@ export function TaskCard({ task }: TaskCardProps) {
               <select
                 name="contextType"
                 defaultValue={task.contextType}
-                className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-amber-300"
+                className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-[#d6c7b2]"
               >
                 {contextOptions.map((option) => (
                   <option key={option.value} value={option.value}>
