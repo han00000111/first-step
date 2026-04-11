@@ -10,10 +10,10 @@ import {
   Smartphone,
 } from "lucide-react";
 
-import { createTaskAction } from "@/app/actions/task-actions";
 import { initialTaskActionState } from "@/app/actions/task-action-state";
+import { createTaskAction } from "@/app/actions/task-actions";
 import { FormSubmitButton } from "@/components/form-submit-button";
-import { contextOptions, type ContextTypeValue } from "@/lib/task-options";
+import type { ContextTypeValue } from "@/lib/task-options";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
 
@@ -107,7 +107,9 @@ export function TaskEntryForm() {
 
         <div className="mt-4 grid gap-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700">最晚时间</label>
+            <label className="block text-sm font-medium text-zinc-700">
+              最晚时间
+            </label>
             <input
               name="dueAt"
               type="datetime-local"
@@ -123,22 +125,11 @@ export function TaskEntryForm() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-700">任务场景</label>
-            <select
-              name="contextType"
-              value={preferredContext}
-              onChange={(event) =>
-                setPreferredContext(event.target.value as ContextTypeValue)
-              }
-              className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-800 transition focus:border-emerald-300 focus:bg-white focus:shadow-[0_0_0_4px_rgba(167,243,208,0.35)]"
-            >
-              {contextOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <label className="block text-sm font-medium text-zinc-700">
+              任务场景
+            </label>
+            <input type="hidden" name="contextType" value={preferredContext} />
+            <div className="mt-2 flex flex-wrap gap-2">
               {quickContextOptions.map((option) => {
                 const Icon = option.icon;
 
@@ -175,7 +166,7 @@ export function TaskEntryForm() {
               {state.message}
             </span>
           ) : (
-            "默认只需要一句话，其他字段都可以以后再补。"
+            "默认只需要一句话，其它字段都可以以后再补。"
           )}
         </div>
 

@@ -37,7 +37,7 @@ const demoSteps = [
   },
   {
     title: "在提醒里响应",
-    description: "演示“先开始一点 / 稍后提醒我 / 今天先放一下”。",
+    description: "演示“先开始一点 / 稍后提醒我 / 今天先放一放”。",
     href: "/reminders",
     icon: BellDot,
   },
@@ -55,8 +55,7 @@ function HomeErrorState({ message }: { message: string }) {
   return (
     <AppShell
       eyebrow="低阻力启动提醒器"
-      title="当前环境还没有成功连上数据库。"
-      description="页面不会直接白屏，是为了让你在线上也能更快定位环境变量或数据库连接配置问题。"
+      title="当前环境还没成功连上数据库。"
     >
       <DemoRuntimeError
         title="首页数据读取失败"
@@ -78,7 +77,6 @@ function HomeContent({ summary }: { summary: HomeSummaryData }) {
     <AppShell
       eyebrow="低阻力启动提醒器"
       title="想到什么，先记一句。让开始更容易一点。"
-      description="首页只做一件事：帮用户在最短时间里把任务放进来。先记下，再决定什么时候提醒更容易被接受。"
     >
       <section className="mx-auto max-w-5xl xl:max-w-6xl">
         <TaskEntryForm />
@@ -134,10 +132,6 @@ function HomeContent({ summary }: { summary: HomeSummaryData }) {
 
           <div className="rounded-[26px] border border-white/80 bg-white/92 p-5 shadow-[0_18px_48px_-30px_rgba(15,23,42,0.22)]">
             <div className="text-sm font-medium text-zinc-700">3 分钟演示路径</div>
-            <div className="mt-2 text-sm leading-6 text-zinc-600">
-              按这个顺序演示就够了：录入一条任务，确认任务出现，在提醒中心做一次响应，最后去看板看统计变化。
-            </div>
-
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {demoSteps.map((step) => {
                 const Icon = step.icon;
@@ -173,10 +167,7 @@ function HomeContent({ summary }: { summary: HomeSummaryData }) {
               <RotateCcw className="h-4 w-4" />
               演示前重置
             </div>
-            <div className="mt-3 text-sm leading-6 text-zinc-600">
-              如果你想每次都从同一组演示数据开始，先执行一次种子命令。
-            </div>
-            <div className="mt-4 rounded-[18px] border border-emerald-100 bg-white px-4 py-4 font-mono text-sm text-zinc-900">
+            <div className="mt-3 rounded-[18px] border border-emerald-100 bg-white px-4 py-4 font-mono text-sm text-zinc-900">
               npm run db:reset:demo
             </div>
             <div className="mt-3 text-xs leading-5 text-zinc-500">
@@ -187,7 +178,7 @@ function HomeContent({ summary }: { summary: HomeSummaryData }) {
           <div className="rounded-[26px] border border-white/80 bg-white/92 p-5 shadow-[0_18px_48px_-30px_rgba(15,23,42,0.22)]">
             <div className="text-sm font-medium text-zinc-700">首页重点</div>
             <div className="mt-3 text-sm leading-6 text-zinc-600">
-              用户打开页面后，第一眼只需要知道一件事：先输入一句任务。其他说明都往后放。
+              用户打开页面后，第一眼只需要知道一件事：先输入一句任务。
             </div>
           </div>
         </aside>
