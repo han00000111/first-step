@@ -80,7 +80,7 @@ function HomeContent({ summary }: { summary: HomeSummaryData }) {
       title="想到什么，先记一句。让开始更容易一点。"
       description="首页只做一件事：帮用户在最短时间里把任务放进来。先记下，再决定什么时候提醒更容易被接受。"
     >
-      <section className="mx-auto max-w-3xl">
+      <section className="mx-auto max-w-5xl xl:max-w-6xl">
         <TaskEntryForm />
       </section>
 

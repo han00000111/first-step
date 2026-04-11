@@ -53,7 +53,7 @@ export function TaskEntryForm() {
     <form
       ref={formRef}
       action={formAction}
-      className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,#fffefe_0%,#fbfdf9_100%)] p-5 shadow-[0_26px_70px_-40px_rgba(15,23,42,0.32)] sm:p-7"
+      className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,#fffefe_0%,#fbfdf9_100%)] p-5 shadow-[0_26px_70px_-40px_rgba(15,23,42,0.32)] sm:p-7 lg:px-9 lg:py-8 xl:px-11 xl:py-10"
     >
       <div className="flex items-center gap-2 text-sm font-medium text-emerald-700">
         <Clock3 className="h-4 w-4" />
@@ -61,10 +61,10 @@ export function TaskEntryForm() {
       </div>
 
       <div className="mt-4 space-y-2">
-        <h2 className="text-[1.6rem] font-semibold tracking-tight text-zinc-900 sm:text-[1.9rem]">
+        <h2 className="text-[1.6rem] font-semibold tracking-tight text-zinc-900 sm:text-[1.9rem] lg:text-[2.15rem]">
           想到什么，就先记一句。
         </h2>
-        <p className="max-w-xl text-sm leading-6 text-zinc-600">
+        <p className="max-w-xl text-sm leading-6 text-zinc-600 lg:max-w-2xl">
           不用先拆计划，也不用想完整流程。先把这件事放进来，剩下交给提醒时机。
         </p>
       </div>
@@ -75,7 +75,7 @@ export function TaskEntryForm() {
       <textarea
         name="content"
         required
-        className="mt-3 min-h-40 w-full resize-none rounded-[26px] border border-emerald-100 bg-[#fcfffd] px-5 py-5 text-base leading-7 text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] transition focus:border-emerald-300 focus:bg-white focus:shadow-[0_0_0_4px_rgba(167,243,208,0.45)]"
+        className="mt-3 min-h-40 w-full resize-none rounded-[26px] border border-emerald-100 bg-[#fcfffd] px-5 py-5 text-base leading-7 text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] transition focus:border-emerald-300 focus:bg-white focus:shadow-[0_0_0_4px_rgba(167,243,208,0.45)] lg:min-h-[18rem] lg:px-6 lg:py-6 lg:text-[1.05rem] lg:leading-8 xl:min-h-[20rem]"
         placeholder={"明天下午给 HR 回消息\n今晚改简历第一段\n周四前投 3 个岗位"}
       />
       {state.fieldErrors?.content ? (

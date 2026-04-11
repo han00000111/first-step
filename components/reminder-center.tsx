@@ -477,8 +477,8 @@ function ReminderCard({
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <form action={respondToReminderAction}>
+              <div className="flex flex-wrap justify-end gap-2">
+                <form action={respondToReminderAction} className="order-2">
                   <input type="hidden" name="taskId" value={reminder.taskId} />
                   <input type="hidden" name="responseType" value="remind_later" />
                   <input
@@ -515,7 +515,7 @@ function ReminderCard({
                 <button
                   type="button"
                   onClick={toggleCustomDelay}
-                  className="inline-flex min-h-11 items-center justify-center rounded-[18px] border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-100"
+                  className="order-1 inline-flex min-h-11 items-center justify-center rounded-[18px] border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-100"
                 >
                   {isCustomDelayOpen ? "收起自定义" : "自定义"}
                 </button>
