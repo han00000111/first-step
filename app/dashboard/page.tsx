@@ -8,14 +8,114 @@ export const dynamic = "force-dynamic";
 
 type DashboardMetricsData = Awaited<ReturnType<typeof getDashboardMetrics>>;
 type BreakdownRow = DashboardMetricsData["styleRows"][number];
+type PieSlice = {
+  key: string;
+  label: string;
+  value: number;
+  color: string;
+};
+
+function formatPercent(value: number, total: number) {
+  if (total === 0) {
+    return "0%";
+  }
+
+  const percentage = (value / total) * 100;
+  return Number.isInteger(percentage)
+    ? `${percentage.toFixed(0)}%`
+    : `${percentage.toFixed(1)}%`;
+}
+
+function buildPieGradient(slices: PieSlice[]) {
+  const total = slices.reduce((sum, slice) => sum + slice.value, 0);
+
+  if (total === 0) {
+    return "conic-gradient(#dadce3 0deg 360deg)";
+  }
+
+  let current = 0;
+  const segments = slices.map((slice) => {
+    const start = current;
+    current += (slice.value / total) * 360;
+
+    return `${slice.color} ${start}deg ${current}deg`;
+  });
+
+  return `conic-gradient(${segments.join(", ")})`;
+}
+
+function PieChartCard({
+  title,
+  totalLabel,
+  emptyText,
+  slices,
+}: {
+  title: string;
+  totalLabel: string;
+  emptyText: string;
+  slices: PieSlice[];
+}) {
+  const activeSlices = slices.filter((slice) => slice.value > 0);
+  const total = activeSlices.reduce((sum, slice) => sum + slice.value, 0);
+
+  return (
+    <div className="rounded-[24px] border border-zinc-200 bg-white p-5 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.16)] sm:p-6">
+      <div className="text-sm font-medium text-zinc-900">{title}</div>
+
+      {total === 0 ? (
+        <div className="mt-4 rounded-[20px] border border-dashed border-zinc-300 bg-zinc-50/80 p-4 text-sm text-zinc-500">
+          {emptyText}
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-4 sm:grid-cols-[176px_minmax(0,1fr)] sm:items-center">
+          <div className="relative mx-auto h-40 w-40">
+            <div
+              className="h-full w-full rounded-full"
+              style={{ backgroundImage: buildPieGradient(activeSlices) }}
+            />
+            <div className="absolute inset-6 flex items-center justify-center rounded-full bg-white shadow-[0_12px_30px_-22px_rgba(15,23,42,0.25)]">
+              <div className="text-center">
+                <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+                  {totalLabel}
+                </div>
+                <div className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900">
+                  {total}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {activeSlices.map((slice) => (
+              <div
+                key={slice.key}
+                className="flex items-center justify-between gap-3 rounded-[18px] bg-zinc-50/80 px-3 py-3"
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className="h-3 w-3 rounded-full"
+                    style={{ backgroundColor: slice.color }}
+                  />
+                  <span className="text-sm font-medium text-zinc-800">
+                    {slice.label}
+                  </span>
+                </div>
+                <div className="text-right text-xs text-zinc-500">
+                  <div>{formatPercent(slice.value, total)}</div>
+                  <div className="mt-0.5">{slice.value} 次</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function DashboardErrorState({ message }: { message: string }) {
   return (
-    <AppShell
-      eyebrow="统计看板"
-      title="看板当前没有成功连上数据库。"
-      description="这里不会直接白屏，方便你在线上确认是否是环境变量或数据库连接配置出了问题。"
-    >
+    <AppShell eyebrow="统计看板" title="看板当前没有成功连上数据库。">
       <DemoRuntimeError
         title="看板数据读取失败"
         message="通常是当前环境的 Postgres 数据库没有连通，导致 ReminderEvent 聚合查询无法执行。"
@@ -103,23 +203,63 @@ function DashboardContent({ metrics }: { metrics: DashboardMetricsData }) {
     },
   ];
 
+  const responseSlices: PieSlice[] = [
+    { key: "accept", label: "接受", value: metrics.acceptCount, color: "#99b3a4" },
+    { key: "delay", label: "延后", value: metrics.delayCount, color: "#ccb08a" },
+    { key: "reject", label: "拒绝", value: metrics.rejectCount, color: "#c5a1a1" },
+  ];
+
+  const styleColors = ["#a7bac5", "#99b3a4", "#ccb08a", "#b4adc8"];
+  const styleSlices: PieSlice[] = metrics.styleRows.map((row, index) => ({
+    key: row.key,
+    label: row.label,
+    value: row.reminderCount,
+    color: styleColors[index % styleColors.length],
+  }));
+
+  const contextColorMap: Record<string, string> = {
+    mobile: "#a7bac5",
+    pc: "#9fb5ad",
+    offline: "#ccb08a",
+    unknown: "#b8b8c3",
+  };
+  const contextSlices: PieSlice[] = metrics.contextRows.map((row) => ({
+    key: row.key,
+    label: row.label,
+    value: row.reminderCount,
+    color: contextColorMap[row.key] ?? "#b8b8c3",
+  }));
+
   return (
-    <AppShell
-      eyebrow="统计看板"
-      title="重点不是做完多少，而是愿不愿意开始。"
-      description={
-        metrics.latestReminderAtLabel
-          ? `看板基于真实 ReminderEvent 聚合。最近一次有效提醒记录于 ${metrics.latestReminderAtLabel}。`
-          : "看板基于真实 ReminderEvent 聚合。当前还没有有效提醒数据。"
-      }
-    >
+    <AppShell eyebrow="统计看板" title="重点不是做完多少，而是愿不愿意开始。">
       <StatsCards items={summaryItems} />
+
+      <section className="mt-6 grid gap-4 xl:grid-cols-3">
+        <PieChartCard
+          title="提醒响应占比"
+          totalLabel="总响应"
+          emptyText="当前还没有响应事件可展示。"
+          slices={responseSlices}
+        />
+        <PieChartCard
+          title="提醒风格占比"
+          totalLabel="总提醒"
+          emptyText="当前还没有提醒风格统计。"
+          slices={styleSlices}
+        />
+        <PieChartCard
+          title="任务场景占比"
+          totalLabel="总提醒"
+          emptyText="当前还没有任务场景统计。"
+          slices={contextSlices}
+        />
+      </section>
 
       <section className="mt-6 grid gap-4 lg:grid-cols-2">
         <div className="rounded-[24px] border border-zinc-200 bg-white p-5 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.16)] sm:p-6">
           <div className="text-lg font-semibold text-zinc-900">提醒风格对比</div>
           <p className="mt-2 text-sm leading-6 text-zinc-500">
-            看不同提醒风格下，用户更容易接受、延后还是拒绝。
+            图表看整体占比，表格保留具体提醒次数和接受、延后、拒绝率。
           </p>
 
           <div className="mt-4">
@@ -158,7 +298,7 @@ function DashboardContent({ metrics }: { metrics: DashboardMetricsData }) {
         <div className="rounded-[24px] border border-zinc-200 bg-white p-5 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.16)] sm:p-6">
           <div className="text-lg font-semibold text-zinc-900">任务场景对比</div>
           <p className="mt-2 text-sm leading-6 text-zinc-500">
-            看手机、电脑、线下这些场景里，提醒更容易被接受还是被推迟。
+            图表看整体占比，表格保留具体提醒次数和接受、延后、拒绝率。
           </p>
 
           <div className="mt-4">

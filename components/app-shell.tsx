@@ -6,7 +6,7 @@ import { TopNav } from "@/components/top-nav";
 type AppShellProps = {
   eyebrow: string;
   title: string;
-  description: string;
+  description?: string;
   children: ReactNode;
 };
 
@@ -31,9 +31,11 @@ export function AppShell({
             <h1 className="mt-2 max-w-4xl text-[1.75rem] font-semibold tracking-tight text-zinc-900 sm:mt-3 sm:text-4xl sm:leading-[1.1]">
               {title}
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-600 sm:mt-4 sm:text-base sm:leading-7">
-              {description}
-            </p>
+            {description ? (
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-600 sm:mt-4 sm:text-base sm:leading-7">
+                {description}
+              </p>
+            ) : null}
           </div>
         </section>
         <DeviceNotificationBanner />
