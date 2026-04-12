@@ -6,27 +6,6 @@
   --muted: #62706c;
   --panel: #fffdfa;
   --panel-strong: #ffffff;
-  --tone-sage-50: #eef3ef;
-  --tone-sage-100: #d9e3dc;
-  --tone-sage-200: #c5d2ca;
-  --tone-sage-600: #5f766b;
-  --tone-sage-700: #53695f;
-  --tone-blue-50: #edf1f3;
-  --tone-blue-100: #d7e0e4;
-  --tone-blue-200: #bccad1;
-  --tone-blue-600: #667884;
-  --tone-amber-50: #f4efe7;
-  --tone-amber-100: #e5dccf;
-  --tone-amber-200: #d6c7b2;
-  --tone-amber-600: #84705c;
-  --tone-rose-50: #f4ecec;
-  --tone-rose-100: #e4d7d7;
-  --tone-rose-200: #d2bebe;
-  --tone-rose-600: #856767;
-  --tone-violet-50: #efedf3;
-  --tone-violet-100: #d9d7e3;
-  --tone-violet-200: #c6c2d4;
-  --tone-violet-600: #716c85;
 }
 
 @theme inline {
@@ -45,7 +24,7 @@
 
 html {
   background:
-    radial-gradient(circle at top, #fbf7ee 0%, #f7f4ed 44%, #f2f5f1 100%);
+    radial-gradient(circle at top, #fff7e5 0%, #f8f5ee 44%, #f1f6f1 100%);
   color-scheme: light;
 }
 
@@ -60,8 +39,8 @@ body {
     sans-serif;
   min-height: 100vh;
   background-image:
-    radial-gradient(circle at 10% 10%, rgba(214, 195, 164, 0.12), transparent 26%),
-    radial-gradient(circle at 90% 0%, rgba(171, 190, 179, 0.1), transparent 24%),
+    radial-gradient(circle at 10% 10%, rgba(255, 213, 128, 0.18), transparent 26%),
+    radial-gradient(circle at 90% 0%, rgba(110, 231, 183, 0.16), transparent 24%),
     linear-gradient(180deg, #f9f6ef 0%, #f6f5f0 42%, #f2f7f1 100%);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -86,7 +65,7 @@ button:hover {
 }
 
 ::selection {
-  background: rgba(198, 177, 146, 0.24);
+  background: rgba(245, 158, 11, 0.18);
 }
 
 textarea,

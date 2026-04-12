@@ -400,16 +400,16 @@ export function DeviceNotificationBanner() {
       className={cn(
         "mb-4 rounded-[22px] border p-3.5 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.18)] sm:mb-5 sm:rounded-[24px] sm:p-5",
         subscription
-          ? "border-[#d9e3dc] bg-[linear-gradient(180deg,#fafcf9_0%,#f0f4f1_100%)]"
+          ? "border-emerald-100 bg-[linear-gradient(180deg,#f8fffb_0%,#eef9f2_100%)]"
           : runtime.permission === "denied" || runtime.needsInstallPrompt
-            ? "border-[#e5dccf] bg-[linear-gradient(180deg,#fdfbf8_0%,#f5f0e8_100%)]"
+            ? "border-amber-100 bg-[linear-gradient(180deg,#fffdf8_0%,#faf4e9_100%)]"
             : "border-white/80 bg-white/92",
       )}
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm font-medium text-zinc-900">
-            <Smartphone className="h-4 w-4 text-[#62786d]" />
+            <Smartphone className="h-4 w-4 text-emerald-700" />
             设备提醒
           </div>
           <div className="text-[13px] leading-5 text-zinc-600 sm:text-sm sm:leading-6">
@@ -431,7 +431,7 @@ export function DeviceNotificationBanner() {
                 runtime.missingConfig ||
                 (!runtime.canUsePush && !runtime.needsInstallPrompt)
               }
-              className="inline-flex min-h-11 items-center justify-center rounded-[18px] bg-[#60796e] px-4 py-3 text-sm font-medium text-white shadow-[0_14px_28px_-20px_rgba(96,121,110,0.5)] transition hover:bg-[#556d63] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-h-11 items-center justify-center rounded-[18px] bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-[0_14px_28px_-20px_rgba(16,185,129,0.75)] transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {runtime.permission === "granted" ? "连接设备提醒" : "开启设备提醒"}
             </button>
@@ -443,7 +443,7 @@ export function DeviceNotificationBanner() {
                 type="button"
                 onClick={() => void handleSendTestPush()}
                 disabled={isBusy}
-                className="inline-flex min-h-11 items-center justify-center rounded-[18px] bg-[#60796e] px-4 py-3 text-sm font-medium text-white shadow-[0_14px_28px_-20px_rgba(96,121,110,0.5)] transition hover:bg-[#556d63] disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex min-h-11 items-center justify-center rounded-[18px] bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-[0_14px_28px_-20px_rgba(16,185,129,0.75)] transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 发送测试提醒
               </button>
@@ -451,7 +451,7 @@ export function DeviceNotificationBanner() {
                 type="button"
                 onClick={() => void handleDispatchDuePush()}
                 disabled={isBusy}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[18px] border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 transition hover:border-[#d9e3dc] hover:bg-[#f1f5f2] disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[18px] border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 transition hover:border-emerald-200 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <RefreshCw className="h-4 w-4" />
                 同步到点提醒

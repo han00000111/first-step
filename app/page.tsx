@@ -101,7 +101,7 @@ function HomeContent({ summary }: { summary: HomeSummaryData }) {
         <div className="space-y-4">
           <div className="rounded-[26px] border border-white/80 bg-white/92 p-5 shadow-[0_18px_48px_-30px_rgba(15,23,42,0.22)]">
             <div className="flex items-center gap-2 text-sm font-medium text-zinc-700">
-              <Sparkles className="h-4 w-4 text-[#62786d]" />
+              <Sparkles className="h-4 w-4 text-emerald-700" />
               最近任务
             </div>
             <div className="mt-4 space-y-3">
@@ -140,13 +140,13 @@ function HomeContent({ summary }: { summary: HomeSummaryData }) {
                   <Link
                     key={step.title}
                     href={step.href}
-                    className="group rounded-[22px] border border-zinc-200 bg-zinc-50/80 px-4 py-4 transition hover:-translate-y-0.5 hover:border-[#d9e3dc] hover:bg-white"
+                    className="group rounded-[22px] border border-zinc-200 bg-zinc-50/80 px-4 py-4 transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white"
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#62786d] shadow-sm">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-emerald-700 shadow-sm">
                         <Icon className="h-4 w-4" />
                       </div>
-                      <ArrowRight className="h-4 w-4 text-zinc-400 transition group-hover:translate-x-0.5 group-hover:text-[#62786d]" />
+                      <ArrowRight className="h-4 w-4 text-zinc-400 transition group-hover:translate-x-0.5 group-hover:text-emerald-700" />
                     </div>
                     <div className="mt-4 text-base font-semibold tracking-tight text-zinc-900">
                       {step.title}
@@ -162,12 +162,12 @@ function HomeContent({ summary }: { summary: HomeSummaryData }) {
         </div>
 
         <aside className="space-y-4">
-          <div className="rounded-[26px] border border-[#d9e3dc] bg-[linear-gradient(180deg,#fafcf9_0%,#f1f4f1_100%)] p-5 shadow-[0_18px_48px_-30px_rgba(15,23,42,0.22)]">
-            <div className="flex items-center gap-2 text-sm font-medium text-[#61766c]">
+          <div className="rounded-[26px] border border-emerald-100 bg-[linear-gradient(180deg,#f8fffb_0%,#eef8f1_100%)] p-5 shadow-[0_18px_48px_-30px_rgba(15,23,42,0.22)]">
+            <div className="flex items-center gap-2 text-sm font-medium text-emerald-800">
               <RotateCcw className="h-4 w-4" />
               演示前重置
             </div>
-            <div className="mt-3 rounded-[18px] border border-[#d9e3dc] bg-white px-4 py-4 font-mono text-sm text-zinc-900">
+            <div className="mt-3 rounded-[18px] border border-emerald-100 bg-white px-4 py-4 font-mono text-sm text-zinc-900">
               npm run db:reset:demo
             </div>
             <div className="mt-3 text-xs leading-5 text-zinc-500">

@@ -29,7 +29,7 @@ export function TopNav() {
             </div>
             <div className="text-xs text-zinc-500">先开始一点，再慢慢展开</div>
           </div>
-          <div className="rounded-full border border-[#d7e1dc] bg-[#f1f5f2] px-3 py-1 text-xs font-medium text-[#5f7369]">
+          <div className="rounded-full border border-emerald-200/90 bg-emerald-50/90 px-3 py-1 text-xs font-medium text-emerald-900">
             {currentItem?.label ?? "录入"}
           </div>
         </div>
@@ -42,11 +42,11 @@ export function TopNav() {
               <div className="text-lg font-semibold tracking-tight text-zinc-900">第一步</div>
               <div className="text-xs text-zinc-600">面向拖延型用户的低阻力启动提醒器</div>
             </div>
-            <div className="rounded-full border border-[#d7e1dc] bg-[#f1f5f2] px-3 py-1 text-xs font-medium text-[#5f7369]">
+            <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900">
               聚焦开始，不追踪完成
             </div>
           </div>
-          <nav className="flex items-center gap-2 rounded-full border border-[#dfe6e2] bg-white/95 p-1.5 shadow-[0_10px_32px_-22px_rgba(15,23,42,0.2)]">
+          <nav className="flex items-center gap-2 rounded-full border border-emerald-100 bg-white/95 p-1.5 shadow-[0_10px_32px_-22px_rgba(15,23,42,0.2)]">
             {navItems.map((item) => {
               const isActive =
                 item.href === "/" ? pathname === item.href : pathname.startsWith(item.href);
@@ -57,9 +57,9 @@ export function TopNav() {
                   href={item.href}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "shrink-0 rounded-full border border-transparent px-4 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-[#f1f5f2] hover:text-zinc-900",
+                    "shrink-0 rounded-full border border-transparent px-4 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-emerald-50 hover:text-zinc-900",
                     isActive &&
-                      "border-[#d5ded8] bg-[linear-gradient(135deg,#f8faf8_0%,#edf2ef_100%)] text-[#54695f] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]",
+                      "border-emerald-200 bg-[linear-gradient(135deg,#f6fffb_0%,#dff8eb_100%)] text-emerald-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]",
                   )}
                 >
                   {item.label}
@@ -70,7 +70,7 @@ export function TopNav() {
         </div>
       </header>
 
-      <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-40 border-t border-[#e0e6e2] bg-[rgba(255,253,248,0.97)] px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2 shadow-[0_-12px_30px_-24px_rgba(15,23,42,0.3)] backdrop-blur md:hidden">
+      <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-40 border-t border-emerald-100/90 bg-[rgba(255,253,248,0.97)] px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2 shadow-[0_-12px_30px_-24px_rgba(15,23,42,0.3)] backdrop-blur md:hidden">
         <div className="pointer-events-auto mx-auto grid max-w-md grid-cols-4 gap-2">
           {navItems.map((item) => {
             const isActive =
@@ -85,10 +85,10 @@ export function TopNav() {
                 className={cn(
                   "flex min-h-16 flex-col items-center justify-center gap-1 rounded-[20px] border border-transparent px-2 py-2 text-[11px] font-medium text-zinc-500 transition-colors",
                   isActive &&
-                    "border-[#d5ded8] bg-[linear-gradient(180deg,#f8faf8_0%,#edf2ef_100%)] text-[#54695f] shadow-[0_12px_24px_-22px_rgba(97,120,109,0.38)]",
+                    "border-emerald-200 bg-[linear-gradient(180deg,#f7fffb_0%,#e7f8ef_100%)] text-emerald-950 shadow-[0_12px_24px_-22px_rgba(16,185,129,0.5)]",
                 )}
               >
-                <Icon className={cn("h-4 w-4", isActive ? "text-[#62786d]" : "text-zinc-400")} />
+                <Icon className={cn("h-4 w-4", isActive ? "text-emerald-700" : "text-zinc-400")} />
                 {item.label}
               </Link>
             );
