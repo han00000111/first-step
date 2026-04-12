@@ -7,7 +7,7 @@ type StatsCardsProps = {
 };
 
 export function StatsCards({ items }: StatsCardsProps) {
-  const barColors = ["#a7bac5", "#9ab4a5", "#ccb08a", "#c6a1a1"];
+  const barColors = ["#8FB5D6", "#7FAE95", "#D1AE6B", "#C98E97"];
 
   return (
     <section className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-4">

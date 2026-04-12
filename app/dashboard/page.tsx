@@ -184,7 +184,7 @@ function DashboardContent({ metrics }: { metrics: DashboardMetricsData }) {
     {
       label: "有效提醒",
       value: String(metrics.effectiveReminderCount),
-      note: "分母只看 reminder_sent。",
+      note: "分母只看 reminder_sent",
     },
     {
       label: "启动接受",
@@ -204,30 +204,38 @@ function DashboardContent({ metrics }: { metrics: DashboardMetricsData }) {
   ];
 
   const responseSlices: PieSlice[] = [
-    { key: "accept", label: "接受", value: metrics.acceptCount, color: "#99b3a4" },
-    { key: "delay", label: "延后", value: metrics.delayCount, color: "#ccb08a" },
-    { key: "reject", label: "拒绝", value: metrics.rejectCount, color: "#c5a1a1" },
+    { key: "accept", label: "接受", value: metrics.acceptCount, color: "#7FAE95" },
+    { key: "delay", label: "延后", value: metrics.delayCount, color: "#D1AE6B" },
+    { key: "reject", label: "拒绝", value: metrics.rejectCount, color: "#C98E97" },
   ];
 
-  const styleColors = ["#a7bac5", "#99b3a4", "#ccb08a", "#b4adc8"];
+  const styleColorMap: Record<string, string> = {
+    gentle: "#91AFC7",
+    minimal_action: "#7FAE95",
+    ddl_push: "#D1AE6B",
+    unknown: "#B4AEC7",
+  };
+  const styleFallbackColors = ["#91AFC7", "#7FAE95", "#D1AE6B", "#B4AEC7"];
   const styleSlices: PieSlice[] = metrics.styleRows.map((row, index) => ({
     key: row.key,
     label: row.label,
     value: row.reminderCount,
-    color: styleColors[index % styleColors.length],
+    color:
+      styleColorMap[row.key] ??
+      styleFallbackColors[index % styleFallbackColors.length],
   }));
 
   const contextColorMap: Record<string, string> = {
-    mobile: "#a7bac5",
-    pc: "#9fb5ad",
-    offline: "#ccb08a",
-    unknown: "#b8b8c3",
+    unknown: "#B4AEC7",
+    mobile: "#8FB5D6",
+    pc: "#7FAE95",
+    offline: "#D1AE6B",
   };
   const contextSlices: PieSlice[] = metrics.contextRows.map((row) => ({
     key: row.key,
     label: row.label,
     value: row.reminderCount,
-    color: contextColorMap[row.key] ?? "#b8b8c3",
+    color: contextColorMap[row.key] ?? "#B4AEC7",
   }));
 
   return (
